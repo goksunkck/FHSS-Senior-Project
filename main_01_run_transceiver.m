@@ -40,7 +40,7 @@ simParams.numHops = 256;
 simParams.hopset = [10e6, 12e6, 14e6, 16e6, 18e6, 20e6, 22e6, 24e6];
 
 % Derived Parameters (Calculated for convenience)
-simParams.bitsPerSymbol = log2(simParams.M); % M=4 -> 2 bits/symbol
+simParams.bitsPerSymbol = log2(simParams.M); % log2(M) bits/symbol
 if mod(simParams.numBits, simParams.bitsPerSymbol) ~= 0
     error('numBits must be a multiple of bitsPerSymbol (log2(M))');
 end
@@ -131,7 +131,7 @@ ylim(ax1, [ylim_min, ylim_max]);
 ax2 = subplot(2, 1, 2); % Get handle to the second axis
 
 % ** Use the new RX parameters for high frequency resolution **
-[S_dehop, F_dehop, T_dehop] = spectrogram(dehoppedSignal, hamming(windowLength_RX), overlapLength_RX, nfft_RX, simParams.fs);
+[S_dehop, F_dehop, T_dehop] = spectrogram(dehoppedSignal, hamming(windowLength_RX), overlapLength_RX, nfft_RX, simParams.fs, "centered");
 
 imagesc(ax2, T_dehop, F_dehop, 20*log10(abs(S_dehop)));
 axis(ax2, 'xy');
@@ -141,7 +141,7 @@ xlabel(ax2, 'Time (s)');
 ylabel(ax2, 'Frequency (Hz)');
 
 % ** This Y-limit will now work correctly **
-ylim(ax2, [-250e3, 250e3]); 
+ylim(ax2, [-(simParams.freqSeparation), (simParams.freqSeparation)]); 
 
 
 %% 7. Plot Bits
@@ -149,15 +149,6 @@ ylim(ax2, [-250e3, 250e3]);
 % Let's plot the original and recovered bits to see the BER of 0.
 
 figure;
-subplot(2, 1, 1);
-stem(messageBits, 'b.');
-title('Transmitted Bits');
-xlabel('Bit Index');
-ylabel('Value (0 or 1)');
-% Only plot the first ~200 bits so we can see them clearly
-xlim([0, 200]);
-ylim([-0.2, 1.2]);
-
 subplot(2, 1, 1);
 stem(messageBits, 'b.');
 title('Transmitted Bits');
