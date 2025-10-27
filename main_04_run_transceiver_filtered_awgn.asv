@@ -22,19 +22,19 @@ fprintf('Added src/ and all subfolders to the MATLAB path.\n');
 %
 simParams = struct();
 % System-Wide Parameters
-simParams.fs = 60e6; % Sample Rate (Hz)
-simParams.snr_dB = 10; % Signal-to-Noise Ratio in dB (Adjusted for new PG)
+simParams.fs = 10e6; % Sample Rate (Hz)
+simParams.snr_dB = 20; % Signal-to-Noise Ratio in dB (Adjusted for new PG)
 % Data Source & Modulation Parameters (Chapter 1)
 simParams.numBits = 1024;
 simParams.M = 2;
 
 % --- WIDEBAND PARAMETERS (Rs = 0.1 * fs) ---
 % Set symbol rate to 10% of the sample rate (Rs = 0.1*fs)
-simParams.symbolRate = simParams.fs * 0.1; % 6e6 sym/s (6 Msym/s)
+simParams.symbolRate = simParams.fs * 0.01; % 6e6 sym/s (6 Msym/s)
 
 % We'll use non-coherent FSK with h=1 (robust)
 % So, freqSeparation = symbolRate
-simParams.freqSeparation = simParams.symbolRate; % 6 MHz
+simParams.freqSeparation = simParams.symbolRate; 
 
 % Calculate SamplesPerSymbol based on the new, clean parameters.
 simParams.samplesPerSymbol = round(simParams.fs / simParams.symbolRate); % 60e6 / 6e6 = 10
@@ -42,8 +42,8 @@ simParams.samplesPerSymbol = round(simParams.fs / simParams.symbolRate); % 60e6 
 
 % Hopping & PN Generator Parameters (Chapters 1 & 2)
 simParams.k = 3; % 2^k channels 
-simParams.pnPoly = [3 2 0];
-simParams.pnInitial = [0 0 1];
+simParams.pnPoly = [5 2 0];
+simParams.pnInitial = [0 0 0 0 1];
 simParams.numHops = 256;
 % Programmatically create a hopset. Spacing must match freqSeparation
 % to avoid adjacent channel interference.
@@ -52,10 +52,15 @@ spacing = simParams.freqSeparation; % 6 MHz spacing
 % **FIX:** Center the 8 channels (42MHz total band) inside the valid
 % [-27, +27]MHz range.
 % baseFreq = -21e6; % This centers the hopset   
-baseFreq = -((numChannels-1) * spacing) / 2; % -21e6
+baseFreq = 2e6;
 simParams.hopset = (0:numChannels-1) * spacing + baseFreq;
 % hopset = [-21e6, -15e6, -9e6, -3e6, 3e6, 9e6, 15e6, 21e6]
 % --- END OF HOPSET UPDATE ---
+
+% Intermediate Frequency (IF) Filter configuration
+simParams.applyIFFilter = true;
+simParams.ifFilterCutoffHz = simParams.symbolRate; % Low-pass cutoff (Hz)
+simParams.ifFilterOrder = 70;        
 
 % Derived Parameters (Calculated for convenience)
 simParams.bitsPerSymbol = log2(simParams.M); % log2(M) bits/symbol
@@ -72,7 +77,7 @@ fprintf('Sample Rate: %.2f MHz\n', simParams.fs/1e6);
 fprintf('Symbol Rate: %.2f MHz\n', simParams.symbolRate/1e6); % Changed to MHz
 fprintf('Samples/Symbol: %d\n', simParams.samplesPerSymbol);
 fprintf('Target SNR: %d dB\n', simParams.snr_dB);
-
+fprintf('Hopset: %s MHz\n', mat2str(simParams.hopset/1e6));
 %% 2. Run Transmitter
 %
 % Generate the message bits and the final FHSS signal.
@@ -151,13 +156,13 @@ ylim(ax1, [ylim_min, ylim_max]);
 
 % --- 2. Plot the De-hopped Signal at the Receiver ---
 %    (This signal should be noisy but centered at baseband)
-[~, dehoppedSignal] = createReceiver(receivedSignal, simParams, hopFrequencies);
+[receivedBits, filteredDehoppedSignal, rawDehoppedSignal] = createReceiver(receivedSignal, simParams, hopFrequencies);
 ax2 = subplot(2, 1, 2); 
-[S_dehop, F_dehop, T_dehop] = spectrogram(dehoppedSignal, hamming(windowLength_RX), overlapLength_RX, nfft_RX, simParams.fs, "centered");
+[S_dehop, F_dehop, T_dehop] = spectrogram(filteredDehoppedSignal, hamming(windowLength_RX), overlapLength_RX, nfft_RX, simParams.fs, "centered");
 imagesc(ax2, T_dehop, F_dehop, 20*log10(abs(S_dehop)));
 axis(ax2, 'xy');
 colorbar(ax2);
-title(ax2, 'Receiver''s De-hopped Signal (Spectrogram)');
+title(ax2, 'Receiver''s Filtered De-hopped Signal (Spectrogram)');
 xlabel(ax2, 'Time (s)');
 ylabel(ax2, 'Frequency (Hz)');
 % Adjust Y-limits for new 6MHz freq separation (h=1)
@@ -212,8 +217,8 @@ grid on;
 
 % --- 3. De-hopped Signal (at receiver) ---
 subplot(3, 1, 3);
-plot(timeVector, real(dehoppedSignal(plotSamples)));
-title('Receiver''s De-hopped Signal (Noisy)');
+plot(timeVector, real(filteredDehoppedSignal(plotSamples)));
+title('Receiver''s Filtered De-hopped Signal (Noisy)');
 xlabel('Time (s)');
 ylabel('Amplitude');
 grid on;
