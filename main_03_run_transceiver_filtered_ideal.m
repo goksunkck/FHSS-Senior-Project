@@ -15,20 +15,20 @@ addpath('src/components');
 simParams = struct();
 
 % --- System-Wide Parameters ---
-simParams.fs = 10e6; % 10 MHz Sample Rate. This is our "world clock".
+simParams.fs = 10e6; % 10 MHz Sample Rate. 
 
 % --- Data Source & Modulation Parameters ---
-simParams.numBits = 2048; % Increased for a longer simulation
+simParams.numBits = 2048; 
 simParams.M = 2; % BFSK
 
-% --- "REALISTIC" SIGNAL PARAMETERS ---
+% --- SIGNAL PARAMETERS ---
 % 1. Symbol Rate: 0.1 Msym/s (0.1 MHz). 
 simParams.symbolRate = 1e5; 
 
-% 2. Freq Separation: 1 MHz. We keep h=1 (freqSeparation = symbolRate).
+% 2. Freq Separation:  We keep h=1 (freqSeparation = symbolRate).
 simParams.freqSeparation = simParams.symbolRate; 
 
-% 3. Samples per Symbol: This is now calculated, not defined.
+
 
 simParams.samplesPerSymbol = round(simParams.fs / simParams.symbolRate);
 % --- END OF REALISTIC PARAMETERS ---
@@ -42,28 +42,17 @@ simParams.numHops = 256;
 % --- Hopset Definition (THE CRITICAL FIX) ---
 numChannels = 2^simParams.k; % 8 channels
 
-% **FIX:** The spacing MUST be > signal bandwidth to prevent interference.
-% Our signal BW is approx. Rs + dF = 1MHz + 1MHz = 2 MHz.
-% Let's use 2 MHz as our channel spacing for a clean, non-overlapping hopset.
+% Let's use 2 * freq_sep for channel spacing for a clean, non-overlapping hopset.
 spacing = 2 * simParams.freqSeparation; % 2 MHz spacing
 
-% **FIX:** Start the hopset at 0 Hz as requested.
+% hopset base freqs
 baseFreq = 2e6; 
 simParams.hopset = (0:numChannels-1) * spacing + baseFreq;
-
-% New Hopset: [0, 2, 4, 6, 8, 10, 12, 14] MHz
-% The highest signal (at 14MHz) will span ~13-15 MHz.
-% This fits easily within the 30 MHz Nyquist limit (fs/2).
-% --- END OF HOPSET FIX ---
 
 % --- Intermediate Frequency (IF) Filter configuration ---
 simParams.applyIFFilter = true;
 % **FIX:** Set a proper order for the FIR filter in createReceiver.m
 simParams.ifFilterOrder = 70;
-% **FIX:** DELETE the simParams.ifFilterCutoffHz line.
-% Let the receiver calculate its own optimal cutoff:
-% It will be: 1.1 * (f_sep/2 + R_s) = 1.1 * (0.5M + 1M) = 1.65 MHz
-% This is a perfect cutoff for our 1 MHz signal.
 
 % --- Derived Parameters (Calculated for convenience) ---
 simParams.bitsPerSymbol = log2(simParams.M);
@@ -124,8 +113,6 @@ end
 %% 6. Plot Signals
 %
 % Let's visualize the signals using the STFT (Spectrogram)
-%
-% ** FIX: Increase 'windowLength' for better frequency resolution.
 
 % --- STFT Parameters for TX Plot (Good time resolution) ---
 windowLength_TX = 256;
@@ -198,7 +185,7 @@ ylim([-0.2, 1.2]);
 % Plot the real part of the signals in the time domain.
 
 
-plotSamples = 2000:6000; % Plot long enough to see bits flip
+plotSamples = 2000:10000; % Plot long enough to see bits flip
 timeVector = (plotSamples - 1) / simParams.fs; % Time axis in seconds
 
 figure;

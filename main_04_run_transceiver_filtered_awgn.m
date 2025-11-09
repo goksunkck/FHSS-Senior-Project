@@ -25,7 +25,7 @@ simParams = struct();
 simParams.fs = 10e6; % Sample Rate (Hz)
 simParams.snr_dB = 0; % Signal-to-Noise Ratio in dB (Adjusted for new PG)
 % Data Source & Modulation Parameters (Chapter 1)
-simParams.numBits = 1024;
+simParams.numBits = 4096;
 simParams.M = 2;
 
 % --- WIDEBAND PARAMETERS (Rs = 0.1 * fs) ---
@@ -37,7 +37,7 @@ simParams.symbolRate = simParams.fs * 0.01; % 0.1 MHz
 simParams.freqSeparation = simParams.symbolRate; 
 
 % Calculate SamplesPerSymbol based on the new, clean parameters.
-simParams.samplesPerSymbol = round(simParams.fs / simParams.symbolRate); % 60e6 / 6e6 = 10
+simParams.samplesPerSymbol = round(simParams.fs / simParams.symbolRate); 
 % --- END OF WIDEBAND PARAMETERS ---
 
 % Hopping & PN Generator Parameters (Chapters 1 & 2)
@@ -54,7 +54,7 @@ simParams.hopset = (0:numChannels-1) * spacing + baseFreq;
 % --- END OF HOPSET UPDATE ---
 
 % Intermediate Frequency (IF) Filter configuration
-simParams.applyIFFilter = true;
+simParams.applyIFFilter = false;
 simParams.ifFilterCutoffHz = simParams.symbolRate; % Low-pass cutoff (Hz)
 simParams.ifFilterOrder = 70;        
 
@@ -164,6 +164,8 @@ ylabel(ax2, 'Frequency (Hz)');
 % Adjust Y-limits for new 6MHz freq separation (h=1)
 % The dehopped signal will be at 0 and freqSeparation
 ylim(ax2, [-(simParams.freqSeparation), (simParams.freqSeparation)]); 
+
+
 
 %% 7. Plot Bits
 %
