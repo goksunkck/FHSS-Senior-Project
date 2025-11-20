@@ -54,7 +54,7 @@ simParams.hopset = (0:numChannels-1) * spacing + baseFreq;
 % --- END OF HOPSET UPDATE ---
 
 % Intermediate Frequency (IF) Filter configuration
-simParams.applyIFFilter = false;
+simParams.applyIFFilter = true;
 simParams.ifFilterCutoffHz = simParams.symbolRate; % Low-pass cutoff (Hz)
 simParams.ifFilterOrder = 70;        
 
