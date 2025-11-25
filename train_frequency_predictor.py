@@ -18,6 +18,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import h5py
+import os
+import matplotlib.pyplot as plt
 
 
 def load_mat_file(filepath, variable_name):
@@ -287,6 +289,14 @@ def train():
     
     # --- 8. Train ---
     print('--- Starting training... ---')
+    
+    # History tracking
+    history = {
+        'train_loss': [],
+        'val_loss': [],
+        'val_accuracy': []
+    }
+
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
@@ -327,8 +337,67 @@ def train():
         avg_val_loss = val_loss / len(val_loader)
         val_accuracy = 100 * correct / total
         print(f'Epoch [{epoch+1}/{epochs}] - Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.2f}%')
+        
+        # Update history
+        history['train_loss'].append(running_loss / len(train_loader))
+        history['val_loss'].append(avg_val_loss)
+        history['val_accuracy'].append(val_accuracy)
 
     print('--- Training complete. ---')
+
+    # --- 9. Save Model and Metadata ---
+    if not os.path.exists('models'):
+        os.makedirs('models')
+        
+    model_save_path = 'models/trained_frequency_predictor.pth'
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
+    
+    # Save metadata including normalization params
+    metadata = {
+        'input_size_h_w_c': input_size,
+        'num_classes': num_classes,
+        'class_values': class_values.tolist(),
+        'class_names': [str(c) for c in class_values],
+        'normalization': {
+            'min': float(g_min),
+            'range': float(g_range)
+        },
+        'history': history
+    }
+    
+    metadata_path = 'models/model_metadata.json'
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=4)
+    print(f"Metadata saved to {metadata_path}")
+    
+    # --- 10. Plot Training Results ---
+    if not os.path.exists('results'):
+        os.makedirs('results')
+        
+    plt.figure(figsize=(12, 5))
+    
+    # Plot Loss
+    plt.subplot(1, 2, 1)
+    plt.plot(history['train_loss'], label='Train Loss')
+    plt.plot(history['val_loss'], label='Val Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    # Plot Accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(history['val_accuracy'], label='Val Accuracy')
+    plt.title('Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    
+    plt.tight_layout()
+    plot_path = 'results/training_performance.png'
+    plt.savefig(plot_path)
+    print(f"Training plots saved to {plot_path}")
 
 
 if __name__ == '__main__':
