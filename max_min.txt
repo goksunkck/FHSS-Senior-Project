@@ -1,0 +1,1 @@
+Global Stats: Min = -66.7941, Max = 42.6166
