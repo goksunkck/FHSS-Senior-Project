@@ -169,15 +169,30 @@ def train():
             prep_data['YTrain'] = f['YTrain'][:]
             prep_data['YValidation'] = f['YValidation'][:]
             # Scalar attributes
-            prep_data['lookback_window'] = int(f['lookback_window'][0]) if isinstance(f['lookback_window'], h5py.Dataset) else int(f.attrs['lookback_window'])
-            
-            # String handling
-            dset_name = f['dataset_filename'][:]
-            if isinstance(dset_name[0], (bytes, np.bytes_)):
-                 prep_data['dataset_filename'] = dset_name[0].decode('utf-8')
+            if 'lookback_window' in f.attrs:
+                prep_data['lookback_window'] = int(f.attrs['lookback_window'])
+            elif 'lookback_window' in f:
+                prep_data['lookback_window'] = int(f['lookback_window'][0])
             else:
-                 # Char array?
-                 prep_data['dataset_filename'] = "".join([chr(c) for c in dset_name.flatten()])
+                raise KeyError("lookback_window not found in metadata")
+
+            # String handling
+            if 'dataset_filename' in f.attrs:
+                dset_name = f.attrs['dataset_filename']
+                if isinstance(dset_name, (bytes, np.bytes_)):
+                     prep_data['dataset_filename'] = dset_name.decode('utf-8')
+                else:
+                     prep_data['dataset_filename'] = str(dset_name)
+            elif 'dataset_filename' in f:
+                dset_name = f['dataset_filename'][:]
+                if isinstance(dset_name[0], (bytes, np.bytes_)):
+                     prep_data['dataset_filename'] = dset_name[0].decode('utf-8')
+                else:
+                     prep_data['dataset_filename'] = "".join([chr(c) for c in dset_name.flatten()])
+            else:
+                # Fallback or error
+                # If we are in python mode, we know the filename usually
+                prep_data['dataset_filename'] = 'data/synthetic/classification_dataset_stft_random_deg10_python.h5'
             
             # Class values
             prep_data['class_values'] = f['class_values'][:]
@@ -213,26 +228,25 @@ def train():
     print(f"Dataset path: {dataset_filename}")
     
     # --- 2. Normalization ---
-    # Try to load from the dataset file itself, fallback to fixed conservative values
-    g_min = -50.0
+    # Load from file (attributes or datasets)
+    g_min = -100.0
     g_max = 50.0
     
     try:
         with h5py.File(dataset_filename, 'r') as f:
-            # Check attributes or datasets
             if 'global_min' in f.attrs:
                 g_min = float(f.attrs['global_min'])
                 g_max = float(f.attrs['global_max'])
-                print(f"Loaded normalization stats from attributes: Min={g_min:.2f}, Max={g_max:.2f}")
+                print(f"Loaded normalization from attributes: Min={g_min:.2f}, Max={g_max:.2f}")
             elif 'global_min' in f:
-                g_min = float(f['global_min'][0, 0])
-                g_max = float(f['global_max'][0, 0])
-                print(f"Loaded normalization stats from datasets: Min={g_min:.2f}, Max={g_max:.2f}")
+                g_min = float(f['global_min'][0])
+                g_max = float(f['global_max'][0])
+                print(f"Loaded normalization from datasets: Min={g_min:.2f}, Max={g_max:.2f}")
             else:
-                 print("Global stats not found in file. Using default conservative values.")
+                print("Warning: Global stats not in file. Using defaults.")
     except Exception as e:
-        print(f"Warning: Could not read normalization stats ({e}). Using defaults.")
-
+        print(f"Warning: Could not read normalization ({e}). Using defaults.")
+    
     print(f"Using normalization: Min={g_min}, Max={g_max}")
     g_range = g_max - g_min
 
@@ -250,52 +264,84 @@ def train():
     val_dataset = RAMDataset(dataset_filename, sequence_starts_validation, YValidation_mapped, lookback_window, g_min, g_range)
 
     # High Performance Loader Settings
-    # Colab has 2-4 cores. num_workers=4 is usually safe.
-    batch_size = 256 # High batch size for GPU saturation
+    # Windows: num_workers=0 to prevent RAM explosion with large Dataset objects
+    # Batch size reduced to fit 6GB VRAM
+    batch_size = 32
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True) # windows num_workers=0
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
 
-    # --- 5. Model (Same upgraded architecture) ---
+    # --- 5. Model (Improved Architecture) ---
     class CNNLSTM(nn.Module):
         def __init__(self, input_size, num_classes):
             super(CNNLSTM, self).__init__()
-            # CNN
+            # Input: (1, 1024, 3)
+            
             self.cnn = nn.Sequential(
-                nn.Conv2d(1, 16, kernel_size=3, padding='same'),
-                nn.BatchNorm2d(16),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1)),
-
-                nn.Conv2d(16, 32, kernel_size=3, padding='same'),
+                # Block 1
+                nn.Conv2d(1, 32, kernel_size=3, padding='same'),
                 nn.BatchNorm2d(32),
                 nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1)),
+                nn.MaxPool2d(kernel_size=(2, 1)), # -> (32, 512, 3)
                 
-                nn.AdaptiveMaxPool2d((10, 1)), 
-                nn.Flatten() 
+                # Block 2
+                nn.Conv2d(32, 64, kernel_size=3, padding='same'),
+                nn.BatchNorm2d(64),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 1)), # -> (64, 256, 3)
+                
+                # Block 3
+                nn.Conv2d(64, 128, kernel_size=3, padding='same'),
+                nn.BatchNorm2d(128),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 1)), # -> (128, 128, 3)
+                
+                # Block 4
+                nn.Conv2d(128, 128, kernel_size=3, padding='same'),
+                nn.BatchNorm2d(128),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(4, 1)), # -> (128, 32, 3)
             )
             
-            cnn_out_size = 32 * 10 * 1 
+            # Calculate flatten size
+            # Final Height = 32
+            # Final Width = 3 (time dim preserved)
+            # Channels = 128
+            self.flatten_size = 128 * 32 * 3
             
-            # LSTM (2-Layer, 256 Hidden)
+            self.projection = nn.Linear(self.flatten_size, 512)
+            self.proj_bn = nn.BatchNorm1d(512)
+            self.proj_relu = nn.ReLU()
+            
+            # LSTM (2-Layer, 512 Hidden)
             self.lstm = nn.LSTM(
-                input_size=cnn_out_size, 
-                hidden_size=256, 
+                input_size=512, 
+                hidden_size=512, 
                 num_layers=2, 
                 batch_first=True,
                 dropout=0.5
             )
             
             self.dropout = nn.Dropout(0.5)
-            self.fc = nn.Linear(256, num_classes)
+            self.fc = nn.Linear(512, num_classes)
 
         def forward(self, x):
             batch_size, seq_len, C, H, W = x.size()
             c_in = x.view(batch_size * seq_len, C, H, W)
-            c_out = self.cnn(c_in)
-            r_in = c_out.view(batch_size, seq_len, -1)
-            _, (h_n, _) = self.lstm(r_in)
+            
+            c_out = self.cnn(c_in) # (B*S, 128, 32, 3)
+            
+            c_flat = c_out.view(batch_size * seq_len, -1)
+            c_proj = self.proj_relu(self.proj_bn(self.projection(c_flat)))
+            
+            r_in = c_proj.view(batch_size, seq_len, -1)
+            
+            # LSTM
+            # output: (B, S, H_out), h_n: (Layers, B, H_out)
+            lstm_out, (h_n, _) = self.lstm(r_in)
+            
+            # Use last hidden state
+            # h_n[-1] is the last layer's final state
             out = self.dropout(h_n[-1])
             out = self.fc(out)
             return out
@@ -321,7 +367,8 @@ def train():
     criterion = nn.CrossEntropyLoss()
     
     # AdamW + Scheduler
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, betas=(0.9, 0.999), weight_decay=1e-4) # "Thumb rule" betas
+    # Increased LR to 1e-3
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, betas=(0.9, 0.999), weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
     
     history = {'train_loss': [], 'val_loss': [], 'val_accuracy': []}

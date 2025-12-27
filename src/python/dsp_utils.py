@@ -110,6 +110,17 @@ def compute_stft_matrix(signal_chunk, fs, nfft, window_len, overlap_len):
     # We need fftshift to center it.
     Zxx = np.fft.fftshift(Zxx, axes=0)
     
+    # CRITICAL MATLAB COMPATIBILITY FIX:
+    # MATLAB's spectrogram() applies a scaling factor that scipy.signal.stft does not.
+    # The scaling factor is approximately: window_len * coherent_gain
+    # For Hamming window (128 length): sum(hamming(128))/128 ≈ 0.54
+    # So: 128 * 0.54 ≈ 69.12
+    # This matches MATLAB's output: 20*log10(69) ≈ 36.78 dB
+    win_array = scipy.signal.get_window('hamming', window_len)
+    coherent_gain = np.sum(win_array) / len(win_array)
+    scaling_factor = window_len * coherent_gain
+    Zxx = Zxx * scaling_factor
+    
     # Log-Mag
     mag = np.abs(Zxx)
     log_mag = 20 * np.log10(mag + np.finfo(float).eps)
