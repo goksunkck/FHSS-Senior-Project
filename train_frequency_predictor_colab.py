@@ -47,105 +47,168 @@ class RAMDataset(Dataset):
         self.sequence_starts = sequence_starts
         self.labels = labels
         self.lookback_window = lookback_window
+        self.norm_min = norm_min
+        self.norm_range = norm_range
         
-        # Load the entire HDF5 file content into a CPU Tensor or Numpy Array
+        # Load the entire HDF5 file content
         with h5py.File(h5_filepath, 'r') as f:
-            # Check if transposed
-            x_refs = f['X_data']
+            x_data = f['X_data']
             
-            # We iterate and load all referenced frames now.
-            # Warning: This loop might take a minute, but training will be blazing fast.
-            # If the HDF5 structure is simple (just a big array), we load it directly. 
-            # If it uses cell object references (MATLAB -v7.3), we must dereference.
-            
-            # --- Optimized Bulk Loading ---
-            # Since checking 60,000 references is slow in Python, we try to load raw
-            # If X_data is a cell array in MATLAB, it's a Dataset of Object References in HDF5.
-            
-            self.frames = []
-            
-            # Pre-load Loop
-            # We only load frames that are actually USED in the sequences to save some RAM
-            # But the user asked for "Max Potential", so let's load what we need.
-            
-            # Flatten indices needed
-            needed_indices = set()
-            for start in sequence_starts:
-                # Matlab 1-based -> Python 0-based
-                s_idx = start - 1
-                for i in range(lookback_window):
-                    needed_indices.add(s_idx + i)
-            
-            # Convert to sorted list for sequential access (faster HDD seek)
-            needed_indices = sorted(list(needed_indices))
-            
-            # Create a localized cache/map: global_index -> tensor
-            self.cache = {}
-            
-            # Determine dereferencing method once
-            is_transposed = (x_refs.shape[0] == 1 and x_refs.shape[1] > 1)
-            
-            for idx in needed_indices:
-                if is_transposed:
-                    ref = x_refs[0, idx]
-                else:
-                    ref = x_refs[idx][0]
+            # Check Mode: MATLAB Cell Array (Refs) vs Python Tensor (Direct)
+            if x_data.dtype == 'object' or hasattr(x_data.dtype, 'ref_dtype'):
+                 self.mode = 'matlab_refs'
+                 print("Mode: Legacy MATLAB (Object References)")
+            else:
+                 self.mode = 'python_direct'
+                 print("Mode: Python Direct (HDF5 Array)")
+
+            if self.mode == 'python_direct':
+                # --- FAST PATH ---
+                # Load everything directly
+                # Shape: (TotalHops, 1024, 3)
+                print("Loading raw data into RAM...")
+                raw_data = x_data[:] 
                 
-                img = f[ref][()]
+                # Normalize
+                raw_data = (raw_data - norm_min) / norm_range
                 
-                # Reshape/Transposes (Same logic as lazy loader)
-                if img.ndim == 2:
-                    img = np.expand_dims(img, axis=-1)
+                # Convert to Tensor (N, 1024, 3)
+                self.data_tensor = torch.from_numpy(raw_data).float()
                 
-                if img.shape[0] == 3 and img.shape[1] > 3:
-                     # (3, 1024, 1) -> (1024, 3, 1)
-                    img = np.transpose(img, (1, 0, 2))
+                # Reshape to (N, 1, 1024, 3) for CNN
+                self.data_tensor = self.data_tensor.unsqueeze(1)
+                
+                print(f"preload: Loaded {self.data_tensor.shape} tensor into RAM.")
+                
+            else:
+                # --- LEGACY PATH (Refs) ---
+                x_refs = x_data
+                self.frames = []
+                self.cache = {}
+                
+                needed_indices = set()
+                for start in sequence_starts:
+                    # Matlab 1-based -> Python 0-based
+                    s_idx = start - 1
+                    for i in range(lookback_window):
+                        needed_indices.add(s_idx + i)
+                
+                needed_indices = sorted(list(needed_indices))
+                is_transposed = (x_refs.shape[0] == 1 and x_refs.shape[1] > 1)
+                
+                for idx in needed_indices:
+                    if is_transposed:
+                        ref = x_refs[0, idx]
+                    else:
+                        ref = x_refs[idx][0]
                     
-                # Normalize immediately to save GPU compute
-                img = (img - norm_min) / norm_range
-                
-                # Store as Half precision to save RAM (optional, but good for Colab)
-                # keeping float32 for safety
-                self.cache[idx] = torch.from_numpy(img).permute(2, 0, 1).float()
-                
-        print(f"preload: Loaded {len(self.cache)} frames into RAM.")
+                    img = f[ref][()]
+                    
+                    if img.ndim == 2:
+                        img = np.expand_dims(img, axis=-1)
+                    
+                    if img.shape[0] == 3 and img.shape[1] > 3:
+                        img = np.transpose(img, (1, 0, 2))
+                        
+                    img = (img - norm_min) / norm_range
+                    self.cache[idx] = torch.from_numpy(img).permute(2, 0, 1).float()
+                    
+                print(f"preload: Loaded {len(self.cache)} frames into RAM.")
 
     def __len__(self):
         return len(self.sequence_starts)
 
     def __getitem__(self, idx):
-        start_idx_matlab = self.sequence_starts[idx]
-        label = self.labels[idx]
-        start_idx_python = start_idx_matlab - 1
+        # Adjust start index based on mode
+        # MATLAB metadata is 1-based. Python metadata is 0-based.
+        # BUT: the 'sequence_starts' passed here comes from loaded metadata.
+        # We need to rely on the loader logic to give us the raw value.
+        # If Python mode, we assume 0-based. If MATLAB, 1-based.
         
-        frames = []
-        for i in range(self.lookback_window):
-            # Fetch from RAM cache
-            frames.append(self.cache[start_idx_python + i])
+        # NOTE: Logic below assumes we subtract 1 for MATLAB. 
+        # For Python: 'prepare_sequences.py' saved 0-based indices.
+        
+        start_raw = self.sequence_starts[idx]
+        label = self.labels[idx]
+        
+        if self.mode == 'python_direct':
+            # Index is 0-based, direct slice
+            start = int(start_raw)
+            # Slice range
+            end = start + self.lookback_window
             
-        sequence = torch.stack(frames)
-        return sequence, torch.tensor(label, dtype=torch.long)
+            # Direct tensor slice (Fast)
+            sequence = self.data_tensor[start:end]
+            
+            return sequence, torch.tensor(label, dtype=torch.long)
+            
+        else:
+            # Legacy
+            start_idx_python = start_raw - 1
+            frames = []
+            for i in range(self.lookback_window):
+                frames.append(self.cache[start_idx_python + i])
+            sequence = torch.stack(frames)
+            return sequence, torch.tensor(label, dtype=torch.long)
 
 def train():
     print("--- 1. Load prepared metadata ---")
-    prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
     
-    # Check file existence
-    if not os.path.exists(prep_file):
-         print(f"Error: {prep_file} not found. Please upload data.")
-         return
+    # Priority: Python H5 > MATLAB MAT
+    prep_file_python = 'data/synthetic/prepared_prediction_sequences_python.h5'
+    prep_file_legacy = 'data/synthetic/prepared_prediction_sequences.mat'
+    
+    prep_data = {}
+    is_python_source = False
+    
+    if os.path.exists(prep_file_python):
+        print(f"Loading metadata from: {prep_file_python}")
+        with h5py.File(prep_file_python, 'r') as f:
+            prep_data['sequence_starts_train'] = f['sequence_starts_train'][:]
+            prep_data['sequence_starts_validation'] = f['sequence_starts_validation'][:]
+            prep_data['YTrain'] = f['YTrain'][:]
+            prep_data['YValidation'] = f['YValidation'][:]
+            # Scalar attributes
+            prep_data['lookback_window'] = int(f['lookback_window'][0]) if isinstance(f['lookback_window'], h5py.Dataset) else int(f.attrs['lookback_window'])
+            
+            # String handling
+            dset_name = f['dataset_filename'][:]
+            if isinstance(dset_name[0], (bytes, np.bytes_)):
+                 prep_data['dataset_filename'] = dset_name[0].decode('utf-8')
+            else:
+                 # Char array?
+                 prep_data['dataset_filename'] = "".join([chr(c) for c in dset_name.flatten()])
+            
+            # Class values
+            prep_data['class_values'] = f['class_values'][:]
+            is_python_source = True
+            
+    elif os.path.exists(prep_file_legacy):
+        print(f"Loading metadata from: {prep_file_legacy}")
+        data = load_mat_file(prep_file_legacy, 'prep_data')
+        prep_data['sequence_starts_train'] = data['sequence_starts_train'].flatten()
+        prep_data['sequence_starts_validation'] = data['sequence_starts_validation'].flatten()
+        prep_data['YTrain'] = data['YTrain'].flatten()
+        prep_data['YValidation'] = data['YValidation'].flatten()
+        prep_data['lookback_window'] = int(data['lookback_window'])
+        prep_data['class_values'] = data['class_values'].flatten()
+        
+        d_name = data['dataset_filename']
+        if isinstance(d_name, np.ndarray):
+            prep_data['dataset_filename'] = "".join(map(chr, d_name.flatten()))
+        else:
+            prep_data['dataset_filename'] = str(d_name)
+    else:
+        print("Error: No prepared metadata found.")
+        return
 
-    prep_data = load_mat_file(prep_file, 'prep_data')
-    sequence_starts_train = prep_data['sequence_starts_train'].flatten()
-    sequence_starts_validation = prep_data['sequence_starts_validation'].flatten()
-    YTrain = prep_data['YTrain'].flatten()
-    YValidation = prep_data['YValidation'].flatten()
-    lookback_window = int(prep_data['lookback_window'])
-    class_values = prep_data['class_values'].flatten()
-    
+    sequence_starts_train = prep_data['sequence_starts_train']
+    sequence_starts_validation = prep_data['sequence_starts_validation']
+    YTrain = prep_data['YTrain']
+    YValidation = prep_data['YValidation']
+    lookback_window = prep_data['lookback_window']
+    class_values = prep_data['class_values']
     dataset_filename = prep_data['dataset_filename']
-    if isinstance(dataset_filename, np.ndarray):
-        dataset_filename = "".join(map(chr, dataset_filename.flatten()))
 
     print(f"Dataset path: {dataset_filename}")
     
@@ -156,10 +219,15 @@ def train():
     
     try:
         with h5py.File(dataset_filename, 'r') as f:
-            if 'global_min' in f and 'global_max' in f:
+            # Check attributes or datasets
+            if 'global_min' in f.attrs:
+                g_min = float(f.attrs['global_min'])
+                g_max = float(f.attrs['global_max'])
+                print(f"Loaded normalization stats from attributes: Min={g_min:.2f}, Max={g_max:.2f}")
+            elif 'global_min' in f:
                 g_min = float(f['global_min'][0, 0])
                 g_max = float(f['global_max'][0, 0])
-                print(f"Loaded normalization stats from file: Min={g_min:.2f}, Max={g_max:.2f}")
+                print(f"Loaded normalization stats from datasets: Min={g_min:.2f}, Max={g_max:.2f}")
             else:
                  print("Global stats not found in file. Using default conservative values.")
     except Exception as e:
@@ -185,8 +253,8 @@ def train():
     # Colab has 2-4 cores. num_workers=4 is usually safe.
     batch_size = 256 # High batch size for GPU saturation
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True) # windows num_workers=0
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
 
     # --- 5. Model (Same upgraded architecture) ---
     class CNNLSTM(nn.Module):
@@ -235,11 +303,16 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    # Determine Input Size from cache
-    # Get one random frame
-    first_key = next(iter(train_dataset.cache))
-    sample_frame = train_dataset.cache[first_key] # (C, H, W)
-    input_size = sample_frame.shape # e.g. (1, 1024, 3)
+    # Determine Input Size from cache or tensor
+    if train_dataset.mode == 'python_direct':
+        # (N, 1, 1024, 3) -> frame (1, 1024, 3)
+        input_size = train_dataset.data_tensor.shape[1:] 
+    else:
+        first_key = next(iter(train_dataset.cache))
+        sample_frame = train_dataset.cache[first_key] # (C, H, W)
+        input_size = sample_frame.shape 
+    
+    print(f"Input Frame Size: {input_size}")
     
     model = CNNLSTM(input_size, num_classes).to(device)
     

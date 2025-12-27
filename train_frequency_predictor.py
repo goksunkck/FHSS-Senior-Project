@@ -44,6 +44,7 @@ class SequenceDataset(Dataset):
     """
     Lazy-loading Dataset for large STFT data.
     Does NOT load everything into RAM. Reads from HDF5 on demand.
+    Supports both MATLAB v7.3 (Object References) and Python HDF5 (Direct Arrays).
     """
     def __init__(self, h5_filepath, sequence_starts, labels, lookback_window, norm_min, norm_range, cache_size=0):
         self.h5_filepath = h5_filepath
@@ -53,6 +54,7 @@ class SequenceDataset(Dataset):
         self.norm_min = norm_min
         self.norm_range = norm_range
         self.pdf = None # File handle, initialized in __getitem__ to be picklable
+        self.mode = 'unknown'
         
     def __len__(self):
         return len(self.sequence_starts)
@@ -61,55 +63,116 @@ class SequenceDataset(Dataset):
         if self.pdf is None:
              self.pdf = h5py.File(self.h5_filepath, 'r')
              self.x_refs = self.pdf['X_data'] # Get reference to the dataset
-             # Check if transposed (1, N)
-             if self.x_refs.shape[0] == 1 and self.x_refs.shape[1] > 1:
-                 self.is_transposed = True
+             
+             # Check Mode: MATLAB Cell Array (Refs) vs Python Tensor (Direct)
+             if self.x_refs.dtype == 'object' or hasattr(self.x_refs.dtype, 'ref_dtype'):
+                 self.mode = 'matlab_refs'
+                 # Check if transposed (1, N)
+                 if self.x_refs.shape[0] == 1 and self.x_refs.shape[1] > 1:
+                     self.is_transposed = True
+                 else:
+                     self.is_transposed = False
              else:
-                 self.is_transposed = False
+                 self.mode = 'python_direct'
+                 # Python shape: (N, 1024, 3)
 
-        start_idx_matlab = self.sequence_starts[idx]
+        start_idx_matlab = self.sequence_starts[idx] # Metadata is 0-based from Python prep, 1-based from MATLAB
         label = self.labels[idx]
         
-        # Matlab 1-based -> Python 0-based
-        start_idx_python = start_idx_matlab - 1
+        # Adjust index based on source
+        # If metadata came from Python prepare_sequences.py, it's already 0-based.
+        # If came from MATLAB, it's 1-based.
+        # We can detect this via filename or an attribute.
+        # However, `sequence_starts` usually passed here is whatever was loaded.
+        # Let's assume the LOADER handles the offset, or we check if we are reading Python file.
         
-        seq_range = range(start_idx_python, start_idx_python + self.lookback_window)
+        # Heuristic: If we are in 'python_direct' mode, we assume 0-based indexing from prepare script.
+        # But wait, `train()` function loads `prepared_prediction_sequences_python.h5`.
+        # `prepare_sequences.py` saved `sequence_starts` as `start_idx + j` which is 0-based relative to X_data.
+        # So for Python mode, start_idx is CORRECT.
+        # For MATLAB mode, we subtracted 1 in the old code.
         
+        start_idx = int(start_idx_matlab)
+        if self.mode == 'matlab_refs':
+             start_idx = start_idx - 1 # 1-based to 0-based
+        
+        # Safety check
+        if start_idx < 0: start_idx = 0
+             
         frames = []
         
-        for data_idx in seq_range:
-            # dereference object ref
-            if self.is_transposed:
-                ref = self.x_refs[0, data_idx]
-            else:
-                ref = self.x_refs[data_idx][0]
+        # Batch read optimization for Python mode?
+        # Reading slice [start : start+LB] is faster than loop.
+        if self.mode == 'python_direct':
+            # shape (LB, 1024, 3)
+            # x_refs is the dataset itself
+            chunk = self.x_refs[start_idx : start_idx + self.lookback_window]
             
-            img = self.pdf[ref][()] # Load specific frame
-            
-            # Format: Matlab usually saves as (Freq, Time). 
-            # We want (C, H, W) = (1, 1024, 3) 
-            if img.ndim == 2:
-                img = np.expand_dims(img, axis=-1) # (1024, 3, 1) assuming Freq x Time x C
-            
-            # Transpose if needed to match (H, W, C)
-            # If shape is (3, 1024, 1), assume it's transposed. 
-            # We want H=1024, W=3.
-            if img.shape[0] == 3 and img.shape[1] > 3:
-                img = np.transpose(img, (1, 0, 2))
-                
             # Normalize
-            img = (img - self.norm_min) / self.norm_range
+            chunk = (chunk - self.norm_min) / self.norm_range
             
-            # To Tensor (H, W, C) -> (C, H, W)
-            img_tensor = torch.from_numpy(img).permute(2, 0, 1).float()
-            frames.append(img_tensor)
+            # (LB, 1024, 3) -> Need (LB, C, H, W) -> (LB, 1, 1024, 3)
+            # PyTorch expects C before H,W.
+            # Currently (Freq, Time)? 1024x3.
+            # We treat Freq=H, Time=W.
+            # So (LB, H, W). Add C=1.
+            # (LB, 1, 1024, 3)
+            
+            # Convert to Tensor
+            # Optimization: Do it all at once
+            chunk_tensor = torch.from_numpy(chunk).float()
+            # (LB, 1024, 3) -> (LB, 3, 1024)? 
+            # Train script expected (LB, 1, 1024, 3) or (LB, C, H, W).
+            # Previous code:
+            # img: (1024, 3, 1) -> permute(2,0,1) -> (1, 1024, 3)
+            # So channel is dim 0 (of 3).
+            # My Python data is (1024, 3).
+            # So I want (1, 1024, 3).
+            
+            chunk_tensor = chunk_tensor.unsqueeze(1) # (LB, 1, 1024, 3)
+            
+            sequence = chunk_tensor
+            
+        else:
+            seq_range = range(start_idx, start_idx + self.lookback_window)
+            for data_idx in seq_range:
+                # dereference object ref
+                if self.is_transposed:
+                    ref = self.x_refs[0, data_idx]
+                else:
+                    ref = self.x_refs[data_idx][0]
+                
+                img = self.pdf[ref][()] # Load specific frame
+                
+                # Format: Matlab usually saves as (Freq, Time). 
+                # We want (C, H, W) = (1, 1024, 3) 
+                if img.ndim == 2:
+                    img = np.expand_dims(img, axis=-1) # (1024, 3, 1) assuming Freq x Time x C
+                
+                # Transpose if needed to match (H, W, C)
+                if img.shape[0] == 3 and img.shape[1] > 3:
+                    img = np.transpose(img, (1, 0, 2))
+                    
+                # Normalize
+                img = (img - self.norm_min) / self.norm_range
+                
+                # To Tensor (H, W, C) -> (C, H, W)
+                img_tensor = torch.from_numpy(img).permute(2, 0, 1).float()
+                frames.append(img_tensor)
 
-        sequence = torch.stack(frames) # (Seq, C, H, W)
+            sequence = torch.stack(frames) # (Seq, C, H, W)
+            
         return sequence, torch.tensor(label, dtype=torch.long)
 
 def train():
     print("--- 1. Load prepared metadata ---")
-    prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
+    # Check for Python version first
+    prep_file_python = 'data/synthetic/prepared_prediction_sequences_python.h5'
+    prep_file_mat = 'data/synthetic/prepared_prediction_sequences.mat'
+    
+    prep_file = prep_file_python if os.path.exists(prep_file_python) else prep_file_mat
+    print(f"Loading metadata from: {prep_file}")
+    
     if not os.path.exists(prep_file):
         print(f"Error: {prep_file} not found.")
         return
