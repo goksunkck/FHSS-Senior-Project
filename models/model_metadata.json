@@ -26,4 +26,8 @@
         "7"
     ],
     "normalization": {
-        "min": 
+        "min": -66.7941,
+        "max": 42.6166
+    },
+    "lookback_window": 35
+}

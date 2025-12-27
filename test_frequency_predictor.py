@@ -102,8 +102,14 @@ class CNNLSTM(nn.Module):
     def __init__(self, input_size, num_classes):
         super(CNNLSTM, self).__init__()
         # CNN part - designed to accept (C, H, W)
+        # Architecture must match train_frequency_predictor_colab.py
+        
+        # Note: Train script hardcodes in_channels=1. 
+        # Here we use input_size[2] which should be 1.
+        in_channels = input_size[2] if len(input_size) > 2 else 1
+        
         self.cnn = nn.Sequential(
-            nn.Conv2d(input_size[2], 16, kernel_size=3, padding='same'),
+            nn.Conv2d(in_channels, 16, kernel_size=3, padding='same'),
             nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1)),
@@ -113,21 +119,28 @@ class CNNLSTM(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1)),
             
-            nn.AdaptiveAvgPool2d((10, 1)),
+            nn.AdaptiveMaxPool2d((10, 1)), # Changed from AvgPool to MaxPool to match training
             nn.Flatten()
         )
         
         # Calculate the flattened feature size after CNN
-        with torch.no_grad():
-            dummy_input = torch.zeros(1, input_size[2], input_size[0], input_size[1])
-            cnn_out_size = self.cnn(dummy_input).shape[1]
+        # With AdaptiveMaxPool2d((10, 1)) and 32 channels, it's 32 * 10 * 1 = 320
+        cnn_out_size = 32 * 10 * 1
 
         # LSTM part
-        self.lstm = nn.LSTM(input_size=cnn_out_size, hidden_size=100, batch_first=True)
+        # Changed hidden_size from 100 to 256, num_layers to 2 to match training
+        self.lstm = nn.LSTM(
+            input_size=cnn_out_size, 
+            hidden_size=256, 
+            num_layers=2, 
+            batch_first=True,
+            dropout=0.5
+        )
+        
         self.dropout = nn.Dropout(0.5)
         
         # Fully connected part
-        self.fc = nn.Linear(100, num_classes)
+        self.fc = nn.Linear(256, num_classes)
 
     def forward(self, x):
         # x shape: (batch, lookback, C, H, W)
@@ -153,9 +166,48 @@ class CNNLSTM(nn.Module):
 
 def test():
     print("--- 1. Load prepared data ---")
-    prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
+    # prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
+    prep_file = 'data/synthetic/prepared_test_sequences.mat'
     try:
-        prep_data = load_mat_file(prep_file, 'prep_data')
+        if 'test' in prep_file:
+             # Logic for test file which has different var names potentially or same structure
+             # Our prepare_test_sequences.m uses same structure but saves as 'prepared_test_sequences.mat'
+             pass
+
+        if not os.path.exists(prep_file):
+             print(f"Error: Prepared dataset not found at {prep_file}.")
+             return
+             
+        # In prepare_test_sequences.m I didn't wrap it in a struct named 'prep_data' explicitly?
+        # Wait, save(output_filename, ...) saves variables directly to the root of the MAT file usually, 
+        # UNLESS we used the struct syntax in MATLAB?
+        # In prepare_test_sequences.m:
+        # save(output_filename, 'sequence_starts', ... )
+        # This saves separate variables, NOT a struct `prep_data`.
+        
+        # However, `load_mat_file` in my previous `test_frequency_predictor.py` call for the original file
+        # was: `prep_data = load_mat_file(prep_file, 'prep_data')`? 
+        # Let's check `prepare_prediction_sequences.m`.
+        # No, `prepare_prediction_sequences.m` ALSO saved variables directly:
+        # save(output_filename, 'sequence_starts', 'sequence_starts_train', ...)
+        
+        # So why did `test_frequency_predictor.py` use `load_mat_file(prep_file, 'prep_data')`?
+        # Because `load_mat_file` returns a DICT of all variables if the second arg is likely ignored or 
+        # if the second arg was just a label.
+        # Actually `load_mat_file` definition:
+        # def load_mat_file(filepath, variable_name):
+        # ... return scipy.io.loadmat(filepath)
+        # It ignores variable_name if it's not extracting specific one?
+        # Let's check `load_mat_file` implementation in `test_frequency_predictor.py`:
+        # It calls `scipy.io.loadmat(filepath)` which returns a dict of ALL variables.
+        # It DOES NOT use the `variable_name` argument except to print maybe? 
+        # No, the code I saw earlier:
+        # def load_mat_file(filepath, variable_name):
+        #    return scipy.io.loadmat(filepath)
+        # It ignores `variable_name`.
+        
+        prep_data = load_mat_file(prep_file, 'dummy_arg')
+        
     except FileNotFoundError:
         print(f"Error: Prepared dataset not found at {prep_file}.")
         return
@@ -306,18 +358,19 @@ def test():
 
     # --- 10. Analyze All Signals (SNR Sweep) ---
     numHopsPerSignal = int(prep_data['numHopsPerSignal'])
-    analyze_signal_accuracies(model, X_data_in_memory, numHopsPerSignal, lookback_window, class_values, device, g_min, g_range)
+    analyze_signal_accuracies(model, X_data_in_memory, numHopsPerSignal, lookback_window, class_values, device, g_min, g_range, prep_file)
 
     # --- 11. Visualize Signal Trajectory (Representative) ---
     # visualize_signal_trajectory(model, X_data_in_memory, numHopsPerSignal, lookback_window, class_values, device, g_min, g_range)
 
-def analyze_signal_accuracies(model, x_data, num_hops_per_signal, lookback_window, class_values, device, norm_min, norm_range):
+def analyze_signal_accuracies(model, x_data, num_hops_per_signal, lookback_window, class_values, device, norm_min, norm_range, prep_file_path):
     """Calculates and prints accuracy for every signal in the dataset."""
     print("\n--- Analyzing Accuracy per Signal (SNR Sweep) ---")
     model.eval()
     
     # Load labels and starts
-    prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
+    # prep_file = 'data/synthetic/prepared_prediction_sequences.mat'
+    prep_file = prep_file_path
     full_data = load_mat_file(prep_file, 'Y_labels')
     all_labels = full_data['Y_labels'].flatten()
     
@@ -327,13 +380,23 @@ def analyze_signal_accuracies(model, x_data, num_hops_per_signal, lookback_windo
     seqs_per_signal = num_hops_per_signal - lookback_window
     num_signals = len(all_starts) // seqs_per_signal
     
-    # SNR Configuration (Inferred)
-    snr_levels = range(-10, 12, 2) # -10, -8, ..., 10
+    # SNR Configuration
+    # Detect if we are using the test dataset (step 5) or training (step 2)
+    # Test dataset has: -10, -5, 0, 5, 10 (5 levels)
+    # Train dataset has: -10:2:10 (11 levels)
+    # We can infer this from num_signals if we know signals_per_snr/seed
+    # But easier to check filename or just try to fit.
+    
+    if 'test' in prep_file:
+        snr_levels = [-10, -5, 0, 5, 10]
+    else:
+        snr_levels = list(range(-10, 12, 2)) # -10, -8, ..., 10
+        
     num_snr_levels = len(snr_levels)
     signals_per_snr = num_signals // num_snr_levels
     
     print(f"Total Signals: {num_signals}")
-    print(f"SNR Levels: {list(snr_levels)} ({num_snr_levels} levels)")
+    print(f"SNR Levels: {snr_levels} ({num_snr_levels} levels)")
     print(f"Signals per SNR: {signals_per_snr}")
     
     print("-" * 60)
