@@ -42,13 +42,11 @@ class RAMDataset(Dataset):
     High-Performance Dataset that loads EVERYTHING into RAM at init.
     Ideal for Colab.
     """
-    def __init__(self, h5_filepath, sequence_starts, labels, lookback_window, norm_min, norm_range):
+    def __init__(self, h5_filepath, sequence_starts, labels, lookback_window):
         print(f"preload: Loading dataset from {h5_filepath} into RAM...")
         self.sequence_starts = sequence_starts
         self.labels = labels
         self.lookback_window = lookback_window
-        self.norm_min = norm_min
-        self.norm_range = norm_range
         
         # Load the entire HDF5 file content
         with h5py.File(h5_filepath, 'r') as f:
@@ -69,8 +67,31 @@ class RAMDataset(Dataset):
                 print("Loading raw data into RAM...")
                 raw_data = x_data[:] 
                 
+                # Normalize PER SAMPLE (Vectorized)
+                # raw_data shape: (TotalHops, 1024, 3)
+                
+                print("Applying per-sample normalization for maximum contrast...")
+                
+                # Reshape to (N, -1) to find min/max per sample
+                flat_data = raw_data.reshape(raw_data.shape[0], -1)
+                
+                # Get min and max per sample
+                mins = flat_data.min(axis=1, keepdims=True)
+                maxs = flat_data.max(axis=1, keepdims=True)
+                ranges = maxs - mins
+                
+                # Handle zero range (prevent div by zero)
+                ranges[ranges == 0] = 1.0
+                
+                # Expand dims back to (N, 1, 1) for broadcasting against (N, 1024, 3)
+                # Actually min/max are (N, 1). We need (N, 1, 1)
+                mins = mins.reshape(-1, 1, 1)
+                ranges = ranges.reshape(-1, 1, 1)
+                
                 # Normalize
-                raw_data = (raw_data - norm_min) / norm_range
+                raw_data = (raw_data - mins) / ranges
+                
+                print("Per-sample normalization complete.")
                 
                 # Convert to Tensor (N, 1024, 3)
                 self.data_tensor = torch.from_numpy(raw_data).float()
@@ -110,7 +131,13 @@ class RAMDataset(Dataset):
                     if img.shape[0] == 3 and img.shape[1] > 3:
                         img = np.transpose(img, (1, 0, 2))
                         
-                    img = (img - norm_min) / norm_range
+                    # Per-sample normalization
+                    i_min = img.min()
+                    i_max = img.max()
+                    i_range = i_max - i_min
+                    if i_range == 0: i_range = 1.0
+                    
+                    img = (img - i_min) / i_range
                     self.cache[idx] = torch.from_numpy(img).permute(2, 0, 1).float()
                     
                 print(f"preload: Loaded {len(self.cache)} frames into RAM.")
@@ -228,27 +255,8 @@ def train():
     print(f"Dataset path: {dataset_filename}")
     
     # --- 2. Normalization ---
-    # Load from file (attributes or datasets)
-    g_min = -100.0
-    g_max = 50.0
-    
-    try:
-        with h5py.File(dataset_filename, 'r') as f:
-            if 'global_min' in f.attrs:
-                g_min = float(f.attrs['global_min'])
-                g_max = float(f.attrs['global_max'])
-                print(f"Loaded normalization from attributes: Min={g_min:.2f}, Max={g_max:.2f}")
-            elif 'global_min' in f:
-                g_min = float(f['global_min'][0])
-                g_max = float(f['global_max'][0])
-                print(f"Loaded normalization from datasets: Min={g_min:.2f}, Max={g_max:.2f}")
-            else:
-                print("Warning: Global stats not in file. Using defaults.")
-    except Exception as e:
-        print(f"Warning: Could not read normalization ({e}). Using defaults.")
-    
-    print(f"Using normalization: Min={g_min}, Max={g_max}")
-    g_range = g_max - g_min
+    # SKIPPED: Using per-sample normalization inside RAMDataset
+    print(f"Using per-sample normalization (0-1 range).")
 
     # --- 3. Process Labels ---
     class_map = {val: i for i, val in enumerate(class_values)}
@@ -260,8 +268,8 @@ def train():
     print("Initializing RAM Datasets (This may take 1-2 mins)...")
     
     # Use the RAMDataset class
-    train_dataset = RAMDataset(dataset_filename, sequence_starts_train, YTrain_mapped, lookback_window, g_min, g_range)
-    val_dataset = RAMDataset(dataset_filename, sequence_starts_validation, YValidation_mapped, lookback_window, g_min, g_range)
+    train_dataset = RAMDataset(dataset_filename, sequence_starts_train, YTrain_mapped, lookback_window)
+    val_dataset = RAMDataset(dataset_filename, sequence_starts_validation, YValidation_mapped, lookback_window)
 
     # High Performance Loader Settings
     # Windows: num_workers=0 to prevent RAM explosion with large Dataset objects
@@ -275,75 +283,76 @@ def train():
     class CNNLSTM(nn.Module):
         def __init__(self, input_size, num_classes):
             super(CNNLSTM, self).__init__()
-            # Input: (1, 1024, 3)
+            # COMPACT ARCHITECTURE
+            # Designed to prevent memorization and force rule learning
             
+            # 1. Feature Extractor (Simple Frequency Detector)
             self.cnn = nn.Sequential(
-                # Block 1
-                nn.Conv2d(1, 32, kernel_size=3, padding='same'),
+                # Layer 1: Detect basic spectral features
+                # Input: (1, 1024, 3)
+                # Kernel: (5, 3) covers 5 freq bins and all 3 time steps
+                nn.Conv2d(1, 16, kernel_size=(5, 3), padding=(2, 0)),
+                nn.BatchNorm2d(16),
+                nn.ReLU(),
+                # Pool frequency only: (4, 1)
+                nn.MaxPool2d(kernel_size=(4, 1)), # -> (16, 256, 1)
+                
+                # Layer 2: Refine detection
+                nn.Conv2d(16, 32, kernel_size=(5, 1), padding='same'),
                 nn.BatchNorm2d(32),
                 nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 1)), # -> (32, 512, 3)
+                nn.MaxPool2d(kernel_size=(4, 1)), # -> (32, 64, 1)
                 
-                # Block 2
-                nn.Conv2d(32, 64, kernel_size=3, padding='same'),
-                nn.BatchNorm2d(64),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 1)), # -> (64, 256, 3)
-                
-                # Block 3
-                nn.Conv2d(64, 128, kernel_size=3, padding='same'),
-                nn.BatchNorm2d(128),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 1)), # -> (128, 128, 3)
-                
-                # Block 4
-                nn.Conv2d(128, 128, kernel_size=3, padding='same'),
-                nn.BatchNorm2d(128),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(4, 1)), # -> (128, 32, 3)
+                # Global Max Pooling over frequency dim
+                # We just want to know WHAT frequency is present
+                nn.AdaptiveMaxPool2d((1, 1)) 
             )
             
-            # Calculate flatten size
-            # Final Height = 32
-            # Final Width = 3 (time dim preserved)
-            # Channels = 128
-            self.flatten_size = 128 * 32 * 3
+            # CNN Output: (Batch*Seq, 32, 1, 1) -> Flatten -> (Batch*Seq, 32)
+            self.cnn_out_size = 32
             
-            self.projection = nn.Linear(self.flatten_size, 512)
-            self.proj_bn = nn.BatchNorm1d(512)
-            self.proj_relu = nn.ReLU()
-            
-            # LSTM (2-Layer, 512 Hidden)
+            # 2. Sequence Modeler (Neural LFSR)
+            # Hidden size 128 is enough to meaningful state (20 bits) 
+            # but too small to memorize 200,000+ random sequences
             self.lstm = nn.LSTM(
-                input_size=512, 
-                hidden_size=512, 
+                input_size=self.cnn_out_size, 
+                hidden_size=128, 
                 num_layers=2, 
                 batch_first=True,
-                dropout=0.5
+                dropout=0.2
             )
             
-            self.dropout = nn.Dropout(0.5)
-            self.fc = nn.Linear(512, num_classes)
+            self.fc = nn.Linear(128, num_classes)
 
         def forward(self, x):
+            # x: (Batch, Seq, C, H, W)
             batch_size, seq_len, C, H, W = x.size()
+            
+            # Fold batch and sequence dims for CNN
             c_in = x.view(batch_size * seq_len, C, H, W)
             
-            c_out = self.cnn(c_in) # (B*S, 128, 32, 3)
+            # Extract features
+            c_out = self.cnn(c_in) # (B*S, 32, 1, 1)
             
-            c_flat = c_out.view(batch_size * seq_len, -1)
-            c_proj = self.proj_relu(self.proj_bn(self.projection(c_flat)))
+            # Flatten
+            c_flat = c_out.view(batch_size, seq_len, -1) # (B, S, 32)
             
-            r_in = c_proj.view(batch_size, seq_len, -1)
+            # --- MASKED LEARNING ---
+            # Randomly mask 15% of the time steps during training
+            if self.training:
+                # Create mask: 1 = keep, 0 = mask
+                # Shape: (Batch, Seq, 1) to broadcast across features
+                mask_prob = 0.15
+                mask = torch.bernoulli(torch.full((batch_size, seq_len, 1), 1 - mask_prob)).to(x.device)
+                
+                # Apply mask (0 out the features for masked steps)
+                c_flat = c_flat * mask
             
-            # LSTM
-            # output: (B, S, H_out), h_n: (Layers, B, H_out)
-            lstm_out, (h_n, _) = self.lstm(r_in)
+            # Predict sequence
+            lstm_out, _ = self.lstm(c_flat)
             
-            # Use last hidden state
-            # h_n[-1] is the last layer's final state
-            out = self.dropout(h_n[-1])
-            out = self.fc(out)
+            # Take last step
+            out = self.fc(lstm_out[:, -1, :])
             return out
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
