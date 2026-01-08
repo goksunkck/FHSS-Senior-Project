@@ -13,7 +13,7 @@ def main():
     
     # --- Configuration ---
     snr_levels_db = np.arange(-10, 12, 2) # -10 to 10 step 2
-    num_signals_per_snr = 100
+    num_signals_per_snr = 100 ### NOT USED
     
     # Poly1: x^10 + x^3 + 1 -> [10, 3, 0]
     pn_poly1 = [10, 3, 0]
@@ -83,86 +83,102 @@ def main():
         # 4th window: 97..224 (Out of bounds).
         # So typically 3 columns. Correct.
         
-        dset_X = f.create_dataset('X_data', (total_examples, 1024, 3), dtype='float32') # (N, Freq, Time)
-        dset_Y = f.create_dataset('Y_data', (total_examples, 1), dtype='uint8')
+    # --- POOL BASED GENERATION (Strictly Disjoint) ---
+        # 1. Generate all possible non-zero seeds (1 to 1023)
+        # 2. Shuffle them
+        # 3. Partition into Train, Val, Test sets
+        # 4. Generate data based on these sets
         
-        # Meta
+        print("Creating disjoint seed pools...")
+        all_integers = np.arange(1, 1024) # 1 to 1023 (1023 seeds)
+        np.random.seed(42) # Fixed seed for reproducibility of splits
+        np.random.shuffle(all_integers)
+        
+        # Split: 70% Train, 15% Val, 15% Test
+        n_total = len(all_integers)
+        n_train = int(0.7 * n_total) # ~716
+        n_val = int(0.15 * n_total)  # ~153
+        n_test = n_total - n_train - n_val # ~154
+        
+        seeds_train = all_integers[:n_train]
+        seeds_val = all_integers[n_train:n_train+n_val]
+        seeds_test = all_integers[n_train+n_val:]
+        
+        print(f"Pool sizes: Train={len(seeds_train)}, Val={len(seeds_val)}, Test={len(seeds_test)}")
+        
+        # Strategy: Random Sampling from Disjoint Pools
+        # Target: ~2000 signals total (manageable RAM size ~6GB when loaded)
+        
+        target_total_signals = 2000
+        n_train_sigs = int(0.7 * target_total_signals) # 1400
+        n_val_sigs = int(0.15 * target_total_signals)  # 300
+        n_test_sigs = int(0.15 * target_total_signals) # 300
+        
+        # Adjust total to sum
+        target_total_signals = n_train_sigs + n_val_sigs + n_test_sigs
+        total_examples = target_total_signals * num_hops
+
+        print(f"Generating OPTIMIZED dataset: {target_total_signals} signals total.")
+        print(f"  Train: {n_train_sigs} | Val: {n_val_sigs} | Test: {n_test_sigs}")
+
+        # Dataset Creation
+        chunk_size_examples = 100 * num_hops
+        dset_X = f.create_dataset('X_data', (total_examples, 1024, 3), dtype='float32', chunks=(chunk_size_examples, 1024, 3))
+        dset_Y = f.create_dataset('Y_data', (total_examples, 1), dtype='uint8')
+        dset_SetID = f.create_dataset('Set_ID', (total_examples, 1), dtype='uint8')
+        dset_SeedVal = f.create_dataset('Seed_Val', (total_examples, 1), dtype='int32')
+        dset_SNR = f.create_dataset('SNR', (total_examples, 1), dtype='float32')
+        
+        # Meta - IMPORTANT: Re-adding these so prepare_sequences can read them
         f.attrs['numHopsPerSignal'] = num_hops
         f.attrs['polynomial_degree'] = 10
         
         global_min = float('inf')
         global_max = float('-inf')
-        
         write_idx = 0
-        
-        print(f"Generating {total_signals} signals...")
-        
-        for snr_db in snr_levels_db:
-            print(f"  SNR: {snr_db} dB")
+
+        def generate_batch(pool_seeds, n_signals_to_gen, set_id_val):
+            nonlocal write_idx, global_min, global_max
             
-            for sig_idx in range(num_signals_per_snr):
-                # Randomized Seed
-                rand_seed = np.random.randint(0, 2, 10)
-                while np.all(rand_seed == 0):
-                    rand_seed = np.random.randint(0, 2, 10)
+            for i in range(n_signals_to_gen):
+                # Pick 1 random seed from the allowed pool
+                seed_int = np.random.choice(pool_seeds)
+                # Pick 1 random SNR
+                snr_db = np.random.choice(snr_levels_db)
                 
-                # Gold Code
+                # Generate Gold Code
+                seed_bin_str = format(seed_int, '010b')
+                rand_seed = np.array([int(b) for b in seed_bin_str])
                 gold_gen = GoldCodeGenerator(pn_poly1, pn_initial1, pn_poly2, rand_seed)
-                # bits needed for hops: numHops * k
+                
                 hop_bits_needed = num_hops * k
-                gold_seq = gold_gen.generate(hop_bits_needed) # (N, )
+                gold_seq = gold_gen.generate(hop_bits_needed)
                 
                 # Map to Hops
-                # reshape (k, numHops) or (numHops, k)?
-                # MATLAB: reshape(seq, k, []) -> k rows. Transpose -> numHops rows.
-                gold_seq_reshaped = gold_seq.reshape(k, -1, order='F').T # 'F' to match MATLAB reshape column-major
-                # Actually MATLAB reshape fills columns first. 
-                # goldCodeSequence is 1D vector.
-                # reshape(v, k, []) -> 
-                # col 1: v(1)..v(k)
-                # col 2: v(k+1)..v(2k)
-                # Transpose -> row 1: v(1)..v(k).
-                # This corresponds to standard bits->int conversion.
-                
-                # In Python reshape: 'C' (default) fills rows first? No, last dim first.
-                # 'F' fills first dim first (column-major).
-                # So reshape(k, -1, order='F') is correct equivalent.
-                
-                # Convert bits to int
-                # bi2de(..., 'left-msb') -> [1 0 0] = 4? OR [0 0 1] = 1?
-                # MATLAB bi2de default is 'right-msb' (LSB first). 
-                # Script used 'left-msb'. So first bit is MSB.
-                # [b0 b1 b2] -> b0*4 + b1*2 + b2*1
-                
-                powers = 2 ** np.arange(k-1, -1, -1) # [4, 2, 1]
-                hop_indices = gold_seq_reshaped.dot(powers).astype(int) # (numHops, )
+                gold_seq_reshaped = gold_seq.reshape(k, -1, order='F').T
+                powers = 2 ** np.arange(k-1, -1, -1)
+                hop_indices = gold_seq_reshaped.dot(powers).astype(int)
                 hop_freqs = hopset[hop_indices]
                 
-                # Data
+                # Modulate & Channel
                 message_bits = np.random.randint(0, 2, num_bits)
                 modulated_data = fsk_modulate(message_bits, sim_params)
                 
-                # Hops
                 X_batch = np.zeros((num_hops, 1024, 3), dtype=np.float32)
                 Y_batch = np.zeros((num_hops, 1), dtype=np.uint8)
-                
                 t_vec = np.arange(samples_per_hop) / fs
                 
                 for h in range(num_hops):
                     start = h * samples_per_hop
                     end = (h + 1) * samples_per_hop
-                    
                     segment = modulated_data[start:end]
-                    
                     carrier = np.exp(1j * 2 * np.pi * hop_freqs[h] * t_vec)
                     hop_signal = segment * carrier
-                    
                     rx_signal = add_awgn(hop_signal, snr_db)
                     
-                    # STFT
                     stft_log = compute_stft_matrix(rx_signal, fs, stft_nfft, stft_win, stft_over)
                     
-                    # Updates
+                    # Update Min/Max
                     g_min = np.min(stft_log)
                     g_max = np.max(stft_log)
                     if g_min < global_min: global_min = g_min
@@ -170,17 +186,33 @@ def main():
                     
                     X_batch[h] = stft_log
                     Y_batch[h] = hop_indices[h]
+
+                # Write
+                end_idx = write_idx + num_hops
+                dset_X[write_idx : end_idx] = X_batch
+                dset_Y[write_idx : end_idx] = Y_batch
+                dset_SetID[write_idx : end_idx] = set_id_val
+                dset_SeedVal[write_idx : end_idx] = seed_int 
+                dset_SNR[write_idx : end_idx] = snr_db
+                write_idx = end_idx
                 
-                # Write batch
-                dset_X[write_idx : write_idx+num_hops] = X_batch
-                dset_Y[write_idx : write_idx+num_hops] = Y_batch
-                write_idx += num_hops
-                
+                if (i+1) % 50 == 0:
+                     print(f"  [Set {set_id_val}] Generated {i+1}/{n_signals_to_gen} signals...")
+
+        print("Generating Training Set...")
+        generate_batch(seeds_train, n_train_sigs, 0)
+        
+        print("Generating Validation Set...")
+        generate_batch(seeds_val, n_val_sigs, 1)
+        
+        print("Generating Test Set...")
+        generate_batch(seeds_test, n_test_sigs, 2)
+        
         # Save Global Stats
         f.create_dataset('global_min', data=np.array([global_min]))
         f.create_dataset('global_max', data=np.array([global_max]))
         
-        print(f"Done. Saved {write_idx} examples. Global Min: {global_min}, Global Max: {global_max}")
+        print(f"Done. Saved {write_idx // num_hops} signals. Global Min: {global_min}, Global Max: {global_max}")
 
 if __name__ == "__main__":
     main()

@@ -105,8 +105,6 @@ def visualize_full_signal(target_snr, colormap='viridis'):
     plt.figure(figsize=(15, 6))
     
     plt.imshow(full_spectrogram, aspect='auto', origin='lower', cmap=colormap)
-    
-    plt.colorbar(label='Magnitude (dB)')
     plt.title(f"Full Signal Spectrogram (SNR = {target_snr} dB)")
     plt.xlabel("Time Step (approx)")
     plt.ylabel("Frequency Bin")

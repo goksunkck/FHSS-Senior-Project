@@ -5,15 +5,15 @@ import os
 import sys
 
 def main():
-    print("--- Preparing Sequences (Index-Based for RAM Loading) ---")
+    print("--- Preparing M-SEQUENCE Sequences (Index-Based) ---")
     
     # Config
-    dataset_path = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
-    output_path = os.path.join('data', 'synthetic', 'prepared_prediction_sequences_python.h5')
+    dataset_path = os.path.join('data', 'synthetic', 'm_sequence_dataset.h5')
+    output_path = os.path.join('data', 'synthetic', 'prepared_m_sequence_indices.h5')
     lookback_window = 12 
     
     if not os.path.exists(dataset_path):
-        print(f"Error: {dataset_path} not found.")
+        print(f"Error: {dataset_path} not found. Run generate_m_sequence_dataset.py first.")
         return
 
     with h5py.File(dataset_path, 'r') as f_in, h5py.File(output_path, 'w') as f_out:
@@ -54,28 +54,11 @@ def main():
             except:
                 set_id = SetIDs[base]
 
-            # Generate indices for this signal
-            # Valid starts: 0 .. (Hops - Window - 1) relative to base
-            # e.g. Window 12. Hops 256.
-            # Start at 0 -> End 12. Label at 12.
-            # Last Start: 256 - 12 - 1 = 243. End 255. Label 255?? No.
-            # Label is NEXT hop.
-            # Input [0..11] (indices 0-11). Target 12.
-            # Max Index is 255.
-            # Last Target is 255.
-            # Last Input end must be 255. Start is 255 - 12 = 243.
-            
             num_valid = num_hops_per_signal - lookback_window
             
             for i in range(num_valid):
                 start_global = base + i
                 target_global = base + i + lookback_window
-                
-                # We save the GLOBAL START INDEX
-                # The loader will slice [start : start+window]
-                
-                # We also assume Y is small enough to load into RAM now?
-                # Yes, just integers.
                 
                 target_val = Y_all[target_global][0]
                 

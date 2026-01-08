@@ -286,63 +286,37 @@ def train():
     class CNNLSTM(nn.Module):
         def __init__(self, input_size, num_classes):
             super(CNNLSTM, self).__init__()
-            # COMPACT ARCHITECTURE
-            # Designed to prevent memorization and force rule learning
             
-            # 1. Feature Extractor (Simple Frequency Detector)
+            # 1. Vision Module (Pre-trained CNN)
             self.cnn = nn.Sequential(
-                # Layer 1: Detect basic spectral features
-                # Input: (1, 1024, 3)
-                # Kernel: (5, 3) covers 5 freq bins and all 3 time steps
                 nn.Conv2d(1, 16, kernel_size=(5, 3), padding=(2, 0)),
-                nn.InstanceNorm2d(16), # Normalize per-sample feature maps
-                nn.ReLU(),     # Prevent dead relus
-                # Pool frequency only: (4, 1)
-                nn.MaxPool2d(kernel_size=(4, 1)), # -> (16, 256, 1)
+                nn.InstanceNorm2d(16), 
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(4, 1)), 
                 
-                # Layer 2: Refine detection
                 nn.Conv2d(16, 32, kernel_size=(5, 1), padding='same'),
-                nn.InstanceNorm2d(32), # Normalize per-sample feature maps
+                nn.InstanceNorm2d(32), 
                 nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(4, 1)), # -> (32, 64, 1)
-                
-                # REMOVED Global Max Pooling
-                # We want to preserve the frequency dimension so LSTM knows "WHERE" the peak is
+                nn.MaxPool2d(kernel_size=(4, 1)), 
             )
             
-            # CNN Output Calc:
-            # Input: 1024
-            # L1 Pool (4): 1024 / 4 = 256
-            # L2 Pool (4): 256 / 4 = 64
-            # Output Shape: (32 channels, 64 freq_bins, 1 time)
-            self.cnn_out_size = 32 * 64  # 2048 features
+            # CNN Output Head (to get the class ID)
+            # Input: 32 * 64 * 1 = 2048
+            self.cnn_fc = nn.Linear(32 * 64, num_classes) # Outputs 8 logits
             
-            # Dimensionality reduction: 2048 → 64
-            # This makes LSTM input tractable
-            self.feature_reduction = nn.Sequential(
-                nn.Linear(self.cnn_out_size, 256),
-                nn.ReLU(),
-                nn.Dropout(0.1),
-                nn.Linear(256, 64),
-                nn.ReLU()
-            )
+            # 2. Symbolic Interface
+            # We take the argmax of CNN (0-7) and embed it
+            self.embedding = nn.Embedding(num_embeddings=num_classes, embedding_dim=32)
             
-            # 2. Sequence Modeler (Neural LFSR)
-            # LSTM on reduced features (64-dim instead of 2048)
-            # Hidden size 128 is enough to encode LFSR state (20 bits)
+            # 3. Sequence Modeler (LSTM)
+            # Input size is now just embedding_dim (32)
             self.lstm = nn.LSTM(
-                input_size=64,  # Reduced from 2048!
-                hidden_size=64, 
+                input_size=32,
+                hidden_size=64, # Sufficient for 20-bit state
                 num_layers=2, 
                 batch_first=True,
                 dropout=0.2
             )
-            
-            # Layer normalization for LSTM output
-            self.layer_norm = nn.LayerNorm(64)
-            
-            # Skip connection from reduced features to final output
-            self.skip_proj = nn.Linear(64, 64)
             
             self.fc = nn.Linear(64, num_classes)
 
@@ -353,37 +327,26 @@ def train():
             # Fold batch and sequence dims for CNN
             c_in = x.view(batch_size * seq_len, C, H, W)
             
-            # Extract features
-            c_out = self.cnn(c_in) # (B*S, 32, 64, 1)
+            # CNN Forward (No Gradients for Vision Part)
+            with torch.no_grad():
+                c_out = self.cnn(c_in) # (B*S, 32, 64, 1)
+                c_flat = c_out.view(c_out.size(0), -1) # (B*S, 2048)
+                cnn_logits = self.cnn_fc(c_flat) # (B*S, 8)
+                _, predicted_indices = torch.max(cnn_logits, dim=1) # (B*S, )
             
-            # Flatten CNN output
-            c_flat = c_out.view(batch_size * seq_len, -1) # (B*S, 2048)
-            
-            # Reduce dimensionality
-            c_reduced = self.feature_reduction(c_flat)  # (B*S, 64)
+            # Symbolic Embedding (Gradient Flow Starts Here)
+            embedded = self.embedding(predicted_indices) # (B*S, 32)
             
             # Reshape to sequence for LSTM
-            reduced_seq = c_reduced.view(batch_size, seq_len, -1)  # (B, S, 64)
+            lstm_input = embedded.view(batch_size, seq_len, -1) # (B, S, 32)
             
-            if self.training and torch.rand(1).item() < 0.001: # Print rarely
-                print(f"\n[DEBUG] Input X Stats: Min={x.min():.4f}, Max={x.max():.4f}, Mean={x.mean():.4f}, Std={x.std():.4f}")
-                print(f"[DEBUG] CNN Out Stats: Min={c_flat.min():.4f}, Max={c_flat.max():.4f}, Mean={c_flat.mean():.4f}, Std={c_flat.std():.4f}")
-                print(f"[DEBUG] Reduced Stats: Min={c_reduced.min():.4f}, Max={c_reduced.max():.4f}, Mean={c_reduced.mean():.4f}, Std={c_reduced.std():.4f}")
+            # LSTM Forward
+            lstm_out, _ = self.lstm(lstm_input)
             
-            # LSTM on reduced features
-            lstm_out, _ = self.lstm(reduced_seq)
+            # Predict Next Hop using only the LAST time step output
+            last_timestep = lstm_out[:, -1, :] # (Batch, Hidden)
             
-            # Apply layer normalization to LSTM output
-            lstm_out_norm = self.layer_norm(lstm_out)
-            
-            # Skip connection from last reduced features
-            skip = self.skip_proj(reduced_seq[:, -1, :])  # (B, 128)
-            
-            # Combine LSTM output with skip connection
-            combined = lstm_out_norm[:, -1, :] + skip  # (B, 128)
-            
-            # Final prediction
-            out = self.fc(combined)
+            out = self.fc(last_timestep)
             return out
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
