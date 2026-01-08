@@ -2,7 +2,6 @@ import numpy as np
 import h5py
 import os
 import sys
-
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), 'src', 'python'))
 

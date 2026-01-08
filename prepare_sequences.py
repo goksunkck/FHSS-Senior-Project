@@ -8,7 +8,7 @@ def main():
     # Config
     dataset_path = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
     output_path = os.path.join('data', 'synthetic', 'prepared_prediction_sequences_python.h5')
-    lookback_window = 35
+    lookback_window = 12
     
     if not os.path.exists(dataset_path):
         print(f"Error: {dataset_path} not found.")

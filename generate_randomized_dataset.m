@@ -3,7 +3,6 @@
 % Generates a dataset with DEGREE 10 polynomials and FILTERED RANDOMIZED SEEDS.
 %
 % Output: data/synthetic/classification_dataset_stft_random_deg10.mat
-
 clear; clc; close all;
 
 addpath(genpath('src'));

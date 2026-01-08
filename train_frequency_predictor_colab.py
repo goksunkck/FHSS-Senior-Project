@@ -182,8 +182,11 @@ def train():
     print("--- 1. Load prepared metadata ---")
     
     # Priority: Python H5 > MATLAB MAT
-    prep_file_python = 'data/synthetic/prepared_prediction_sequences_python.h5'
-    prep_file_legacy = 'data/synthetic/prepared_prediction_sequences.mat'
+    prep_file_python = os.path.join('data', 'synthetic', 'prepared_prediction_sequences_python.h5')
+    prep_file_legacy = os.path.join('data', 'synthetic', 'prepared_prediction_sequences.mat')
+    
+    print(f"Checking for Python metadata at: {os.path.abspath(prep_file_python)}")
+    print(f"Checking for Legacy metadata at: {os.path.abspath(prep_file_legacy)}")
     
     prep_data = {}
     is_python_source = False
@@ -274,7 +277,7 @@ def train():
     # High Performance Loader Settings
     # Windows: num_workers=0 to prevent RAM explosion with large Dataset objects
     # Batch size reduced to fit 6GB VRAM
-    batch_size = 32
+    batch_size = 128
     
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
@@ -292,37 +295,56 @@ def train():
                 # Input: (1, 1024, 3)
                 # Kernel: (5, 3) covers 5 freq bins and all 3 time steps
                 nn.Conv2d(1, 16, kernel_size=(5, 3), padding=(2, 0)),
-                nn.BatchNorm2d(16),
-                nn.ReLU(),
+                nn.InstanceNorm2d(16), # Normalize per-sample feature maps
+                nn.ReLU(),     # Prevent dead relus
                 # Pool frequency only: (4, 1)
                 nn.MaxPool2d(kernel_size=(4, 1)), # -> (16, 256, 1)
                 
                 # Layer 2: Refine detection
                 nn.Conv2d(16, 32, kernel_size=(5, 1), padding='same'),
-                nn.BatchNorm2d(32),
+                nn.InstanceNorm2d(32), # Normalize per-sample feature maps
                 nn.ReLU(),
                 nn.MaxPool2d(kernel_size=(4, 1)), # -> (32, 64, 1)
                 
-                # Global Max Pooling over frequency dim
-                # We just want to know WHAT frequency is present
-                nn.AdaptiveMaxPool2d((1, 1)) 
+                # REMOVED Global Max Pooling
+                # We want to preserve the frequency dimension so LSTM knows "WHERE" the peak is
             )
             
-            # CNN Output: (Batch*Seq, 32, 1, 1) -> Flatten -> (Batch*Seq, 32)
-            self.cnn_out_size = 32
+            # CNN Output Calc:
+            # Input: 1024
+            # L1 Pool (4): 1024 / 4 = 256
+            # L2 Pool (4): 256 / 4 = 64
+            # Output Shape: (32 channels, 64 freq_bins, 1 time)
+            self.cnn_out_size = 32 * 64  # 2048 features
+            
+            # Dimensionality reduction: 2048 → 64
+            # This makes LSTM input tractable
+            self.feature_reduction = nn.Sequential(
+                nn.Linear(self.cnn_out_size, 256),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(256, 64),
+                nn.ReLU()
+            )
             
             # 2. Sequence Modeler (Neural LFSR)
-            # Hidden size 128 is enough to meaningful state (20 bits) 
-            # but too small to memorize 200,000+ random sequences
+            # LSTM on reduced features (64-dim instead of 2048)
+            # Hidden size 128 is enough to encode LFSR state (20 bits)
             self.lstm = nn.LSTM(
-                input_size=self.cnn_out_size, 
-                hidden_size=128, 
+                input_size=64,  # Reduced from 2048!
+                hidden_size=64, 
                 num_layers=2, 
                 batch_first=True,
                 dropout=0.2
             )
             
-            self.fc = nn.Linear(128, num_classes)
+            # Layer normalization for LSTM output
+            self.layer_norm = nn.LayerNorm(64)
+            
+            # Skip connection from reduced features to final output
+            self.skip_proj = nn.Linear(64, 64)
+            
+            self.fc = nn.Linear(64, num_classes)
 
         def forward(self, x):
             # x: (Batch, Seq, C, H, W)
@@ -332,27 +354,36 @@ def train():
             c_in = x.view(batch_size * seq_len, C, H, W)
             
             # Extract features
-            c_out = self.cnn(c_in) # (B*S, 32, 1, 1)
+            c_out = self.cnn(c_in) # (B*S, 32, 64, 1)
             
-            # Flatten
-            c_flat = c_out.view(batch_size, seq_len, -1) # (B, S, 32)
+            # Flatten CNN output
+            c_flat = c_out.view(batch_size * seq_len, -1) # (B*S, 2048)
             
-            # --- MASKED LEARNING ---
-            # Randomly mask 15% of the time steps during training
-            if self.training:
-                # Create mask: 1 = keep, 0 = mask
-                # Shape: (Batch, Seq, 1) to broadcast across features
-                mask_prob = 0.15
-                mask = torch.bernoulli(torch.full((batch_size, seq_len, 1), 1 - mask_prob)).to(x.device)
-                
-                # Apply mask (0 out the features for masked steps)
-                c_flat = c_flat * mask
+            # Reduce dimensionality
+            c_reduced = self.feature_reduction(c_flat)  # (B*S, 64)
             
-            # Predict sequence
-            lstm_out, _ = self.lstm(c_flat)
+            # Reshape to sequence for LSTM
+            reduced_seq = c_reduced.view(batch_size, seq_len, -1)  # (B, S, 64)
             
-            # Take last step
-            out = self.fc(lstm_out[:, -1, :])
+            if self.training and torch.rand(1).item() < 0.001: # Print rarely
+                print(f"\n[DEBUG] Input X Stats: Min={x.min():.4f}, Max={x.max():.4f}, Mean={x.mean():.4f}, Std={x.std():.4f}")
+                print(f"[DEBUG] CNN Out Stats: Min={c_flat.min():.4f}, Max={c_flat.max():.4f}, Mean={c_flat.mean():.4f}, Std={c_flat.std():.4f}")
+                print(f"[DEBUG] Reduced Stats: Min={c_reduced.min():.4f}, Max={c_reduced.max():.4f}, Mean={c_reduced.mean():.4f}, Std={c_reduced.std():.4f}")
+            
+            # LSTM on reduced features
+            lstm_out, _ = self.lstm(reduced_seq)
+            
+            # Apply layer normalization to LSTM output
+            lstm_out_norm = self.layer_norm(lstm_out)
+            
+            # Skip connection from last reduced features
+            skip = self.skip_proj(reduced_seq[:, -1, :])  # (B, 128)
+            
+            # Combine LSTM output with skip connection
+            combined = lstm_out_norm[:, -1, :] + skip  # (B, 128)
+            
+            # Final prediction
+            out = self.fc(combined)
             return out
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -371,14 +402,45 @@ def train():
     
     model = CNNLSTM(input_size, num_classes).to(device)
     
+    # --- TRANSFER LEARNING ---
+    # Load pretrained CNN weights if available
+    weights_path = os.path.join('models', 'cnn_weights.pth')
+    if os.path.exists(weights_path):
+        print(f"Loading pretrained CNN weights from {weights_path}...")
+        try:
+            # Load state dict
+            pretrained_dict = torch.load(weights_path, map_location=device)
+            model_dict = model.cnn.state_dict()
+            
+            # Filter matches just in case
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            
+            # Update and load
+            model_dict.update(pretrained_dict)
+            model.cnn.load_state_dict(model_dict)
+            print("✔ Pretrained CNN weights loaded successfully!")
+            
+            # FREEZE CNN LAYERS
+            # This is critical: We want the LSTM to learn to use these perfect features
+            # before we try to fine-tune them.
+            print("❄ Freezing CNN layers for transfer learning...")
+            for param in model.cnn.parameters():
+                param.requires_grad = False
+                
+        except Exception as e:
+            print(f"⚠ Failed to load weights: {e}")
+    else:
+        print("⚠ No pretrained weights found at models/cnn_weights.pth. Training from scratch.")
+    
     # --- 6. Train ---
     epochs = 50 # Increased for Colab
     criterion = nn.CrossEntropyLoss()
     
-    # AdamW + Scheduler
-    # Increased LR to 1e-3
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, betas=(0.9, 0.999), weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
+    # AdamW + Cosine Annealing Scheduler
+    # Reduced LR for more stable training
+    # Optimizer: Only optimize parameters that require gradients
+    optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=5e-4, betas=(0.9, 0.999), weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
     
     history = {'train_loss': [], 'val_loss': [], 'val_accuracy': []}
     
@@ -402,6 +464,10 @@ def train():
             outputs = model(sequences)
             loss = criterion(outputs, labels)
             loss.backward()
+            
+            # Gradient clipping for stability
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
             optimizer.step()
             
             running_loss += loss.item()
@@ -438,7 +504,8 @@ def train():
         avg_val_loss = val_loss / len(val_loader)
         acc = 100 * correct / total
         
-        scheduler.step(avg_val_loss)
+        # Step scheduler (cosine annealing doesn't need loss)
+        scheduler.step()
         
         print(f"Epoch [{epoch+1}/{epochs}] Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Acc: {acc:.2f}%")
         
