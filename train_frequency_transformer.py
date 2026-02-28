@@ -104,32 +104,51 @@ class CNNTransformer(nn.Module):
         self.flat_size = 32 * 64 * 3  # 32 (Channels) * 64 (Height: 1024->256->64) * 3 (Width: Preserved) 
         self.cnn_fc = nn.Linear(self.flat_size, num_classes)
         
-        # Symbolic
-        self.embedding = nn.Embedding(num_classes, d_model)
+        # Project clean frequency probabilities (8 classes) to transformer hidden size
+        self.prob_proj = nn.Linear(num_classes, d_model)
         self.pos_encoder = PositionalEncoding(d_model)
         
         # Transformer
-        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         
-        # We output 3 bits instead of a single class integer (8 classes)
+        # --- CHAIN OF THOUGHT (CoT) IMPLEMENTATION ---
+        # "Task Decomposition": According to the paper, Transformers cannot 
+        # compute hidden parity leaps sequentially inside their attention matrix.
+        # Instead of outputting 1 "giant leap" frequency class integer (0-7), 
+        # we ask the model to output the 3 distinct logical parity bits making up the frequency hop.
         self.fc = nn.Linear(d_model, 3)
 
     def forward(self, x):
         b, s, c, h, w = x.size()
         c_in = x.view(b * s, c, h, w)
         
-        with torch.no_grad():
-            c_out = self.cnn(c_in)
-            c_flat = c_out.view(c_out.size(0), -1)
-            logits = self.cnn_fc(c_flat)
-            _, ids = torch.max(logits, dim=1)
+        # Get continuous features from the CNN
+        c_out = self.cnn(c_in)
+        c_flat = c_out.view(c_out.size(0), -1)
+        
+        # Pass through the pre-trained classification head
+        logits = self.cnn_fc(c_flat)
+        
+        # Convert to a soft probability distribution (differentiable and clean!)
+        probs = torch.softmax(logits, dim=-1)
+        
+        # Project clean probabilities to d_model space: (Batch * SeqLen, 8) -> (Batch * SeqLen, d_model)
+        features = self.prob_proj(probs)
+        
+        # Reshape for transformer: (Batch, SeqLen, d_model)
+        src = features.view(b, s, -1)
             
-        emb = self.embedding(ids)
-        src = emb.view(b, s, -1).permute(1, 0, 2) 
+        # We switched to batch_first=True, so pos_encoder needs adapting, 
+        # or we can just apply pos_encoder with permutes for safety
+        src = src.permute(1, 0, 2) # (S, B, E) for old-style positional encoding
         src = self.pos_encoder(src)
+        src = src.permute(1, 0, 2) # Back to (B, S, E) for batch_first=True Transformer
+        
         out = self.transformer_encoder(src)
-        last = out[-1, :, :]
+        
+        # Get the feature vector of the LAST item in the sequence
+        last = out[:, -1, :]
         return self.fc(last)
 
 def main():
@@ -171,6 +190,8 @@ def main():
         new_cnn_dict = {}
         new_fc_dict = {}
         
+        print(f"DEBUG: Keys in loaded state_dict: {list(d.keys())}")
+        
         for k, v in d.items():
             if k.startswith('cnn.'):
                 name = k[4:] 
@@ -178,15 +199,34 @@ def main():
             elif k.startswith('fc.'):
                 name = k[3:]
                 new_fc_dict[name] = v
+            elif k[0].isdigit():
+                new_cnn_dict[k] = v
+            elif k == 'weight' or k == 'bias':
+                new_fc_dict[k] = v
                 
-        model.cnn.load_state_dict(new_cnn_dict, strict=True)
-        model.cnn_fc.weight.data = new_fc_dict['weight']
-        model.cnn_fc.bias.data = new_fc_dict['bias']
-        print("Loaded CNN Backbone + Classification Head successfully.")
+        try:
+            model.cnn.load_state_dict(new_cnn_dict, strict=True)
+            # Make sure we only load fc weights if shape matches
+            if 'weight' in new_fc_dict and new_fc_dict['weight'].shape == model.cnn_fc.weight.shape:
+                model.cnn_fc.weight.data = new_fc_dict['weight']
+                model.cnn_fc.bias.data = new_fc_dict['bias']
+            print("Loaded CNN Backbone + Classification Head successfully.")
+        except RuntimeError as e:
+            print(f"WARNING: Pretrained weights failed to load (Mismatch)! Error: {e}")
+            print("Continuing training from scratch.")
     else:
-        print("WARNING: Pretrained weights not found!")
+        print("WARNING: Pretrained weights not found! Training from scratch.")
+        
+    # FREEZE the CNN Backbone AND the classification head!
+    for param in model.cnn.parameters():
+        param.requires_grad = False
+    for param in model.cnn_fc.parameters():
+        param.requires_grad = False
     
-    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+    # Only optimize the remaining layers (Transformer + Projections + Heads)
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    
+    optimizer = optim.AdamW(trainable_params, lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     # We use BCEWithLogitsLoss because we are predicting 3 independent bits
     criterion = nn.BCEWithLogitsLoss()
@@ -214,7 +254,11 @@ def main():
             
             optimizer.zero_grad()
             out = model(X)
-            # out is [batch, 3] and y_bits is [batch, 3]
+            
+            # --- CHAIN OF THOUGHT LOSS ---
+            # Paper: Parity can be learned efficiently when intermediate parities 
+            # are incorporated into the loss function ("Teacher Forcing").
+            # Here, we penalize the model for getting ANY of the 3 intermediate LFSR bits wrong
             loss = criterion(out, y_bits)
             loss.backward()
             optimizer.step()

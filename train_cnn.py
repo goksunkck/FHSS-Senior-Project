@@ -91,10 +91,10 @@ class SimpleCNN(nn.Module):
         return out
 
 def train():
-    print("--- Starting CNN Sanity Check ---")
+    print("--- Starting CNN Backbone Pre-training on GOLD CODES ---")
     
     # Path to RAW dataset (not sequences)
-    dataset_path = os.path.join('data', 'synthetic', 'm_sequence_dataset.h5')
+    dataset_path = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
     
     if not os.path.exists(dataset_path):
         print(f"Error: {dataset_path} not found.")
