@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # --- Configuration ---
 BATCH_SIZE = 128
-EPOCHS = 50
+EPOCHS = 150
 LEARNING_RATE = 1e-3
 LOOKBACK_WINDOW = 12
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,15 +56,17 @@ class RAMDataset(Dataset):
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=5000):
         super(PositionalEncoding, self).__init__()
+        # We don't want this in state dict so use register_buffer
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1) 
+        pe = pe.unsqueeze(0).transpose(0, 1) # -> (max_len, 1, d_model)
         self.register_buffer('pe', pe)
 
     def forward(self, x):
+        # x shape should be (SeqLen, Batch, d_model)
         return x + self.pe[:x.size(0), :]
 
 # --- 3. Model Architecture (CNN-Transformer) ---
@@ -171,12 +173,14 @@ class CNNTransformer(nn.Module):
              
              # We only care about the outputs corresponding to the "Thought" tokens
              # We want to predict Bit 1, Bit 2, Bit 3.
-             # Output at index 'Spatial_Sequence_Length - 1' predicts Bit 1
-             # Output at index 'Spatial_Sequence_Length' predicts Bit 2...
+             # Output at index 'Spatial_Sequence_Length - 1' (m) predicts Bit 1
+             # Output at index 'Spatial_Sequence_Length' (m+1) predicts Bit 2...
              
-             thought_outputs = out[s-1 : s-1 + intermediate_bits.size(1), :, :]
+             # We want 3 output predictions total (for Bit 1, 2, 3), which are located
+             # at indices: s-1, s, s+1
+             thought_outputs = out[s-1 : s-1 + 3, :, :]
              
-             # Output shape: (Num_Bits, Batch, 1) -> (Batch, Num_Bits)
+             # Output shape: (3, Batch, 1) -> (Batch, 3)
              logits_out = self.fc(thought_outputs).squeeze(-1).permute(1, 0)
              return logits_out
              
@@ -210,11 +214,10 @@ class CNNTransformer(nn.Module):
                 
                 out = self.transformer_encoder(src, mask=mask)
                 
-                # The very last token in the sequence predicts the next piece of parity math
-                last_token = out[-1, :, :]
-                
-                # Predict 1 Parity Bit
-                next_bit_logit = self.fc(last_token) 
+                # We need to extract the tokens sequentially
+                # Step 0: the spatial sequence is length 's', so the final spatial token is bit 1
+                # Output at s-1 predicts bit 1
+                next_bit_logit = self.fc(out[s-1 + step, :, :])
                 
                 # Hard decision for the next teacher forcing loop!
                 next_bit = (next_bit_logit > 0).float()
@@ -222,9 +225,10 @@ class CNNTransformer(nn.Module):
                 generated_bits.append(next_bit_logit)
                 
                 # Append this hard decision to our thought stream for the next iteration
+                # We append to the current_bit_token array
                 if step == 0:
                     current_bit_token = next_bit.unsqueeze(1)
-                else:
+                elif step < 2:
                      current_bit_token = torch.cat([current_bit_token, next_bit.unsqueeze(1)], dim=1)
             
             # (Batch, 3)
@@ -332,15 +336,15 @@ def main():
                 y_bits[:, i] = (y >> (2 - i)) & 1
             
             # Create the Teacher Forcing Input Sequence
-            # We want to use a "Start" token (Bit=0), then True Bit 1, then True Bit 2.
-            # We DONT input True Bit 3, because the model is predicting Bit 3!
+            # According to the paper:
+            # "At each position m, the ground-truth labels of the preceding intermediate 
+            # states x_1 ... x_{m-1} are fed into the transformer input to predict x_m."
+            # To predict y1: input is Spatial Seq
+            # To predict y2: input is Spatial Seq + y1
+            # To predict y3: input is Spatial Seq + y1 + y2
             
-            # Shape (Batch, 3)
-            # Intermediate teacher bits: [0, y1, y2]
-            teacher_bits = torch.zeros(y.size(0), 3).to(DEVICE)
-            teacher_bits[:, 1] = y_bits[:, 0]
-            teacher_bits[:, 2] = y_bits[:, 1]
-            teacher_bits = teacher_bits.unsqueeze(-1) # (Batch, 3, 1)
+            # Shape (Batch, 2) - We only feed y1 and y2 as preceding states!
+            teacher_bits = y_bits[:, :2].unsqueeze(-1) # (Batch, 2, 1)
             
             optimizer.zero_grad()
             out = model(X, intermediate_bits=teacher_bits)

@@ -8,7 +8,7 @@ import os
 
 # --- Configuration ---
 BATCH_SIZE = 32
-EPOCHS = 10
+EPOCHS = 5
 LEARNING_RATE = 1e-3
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
