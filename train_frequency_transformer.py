@@ -28,18 +28,14 @@ class RAMDataset(Dataset):
         with h5py.File(h5_filepath, 'r') as f:
             x_data = f['X_data'][:] 
             
-            # Normalize Per Sample
-            print("Normalizing...")
-            flat = x_data.reshape(x_data.shape[0], -1)
-            mins = flat.min(axis=1, keepdims=True)
-            maxs = flat.max(axis=1, keepdims=True)
-            rngs = maxs - mins
-            rngs[rngs == 0] = 1.0
+            # Load stats
+            global_min = f['global_min'][0] if 'global_min' in f else -120.0
+            global_max = f['global_max'][0] if 'global_max' in f else 0.0
             
-            mins = mins.reshape(-1, 1, 1)
-            rngs = rngs.reshape(-1, 1, 1)
+            # Normalize Globally (Must match train_cnn.py EXACTLY!)
+            print(f"Normalizing globally... Min: {global_min}, Max: {global_max}")
             
-            x_data = (x_data - mins) / rngs
+            x_data = (x_data - global_min) / (global_max - global_min + 1e-6)
             
             self.data = torch.from_numpy(x_data).float().unsqueeze(1) # (N, 1, 1024, 3)
             print(f"Loaded {self.data.shape}")
@@ -106,20 +102,31 @@ class CNNTransformer(nn.Module):
         
         # Project clean frequency probabilities (8 classes) to transformer hidden size
         self.prob_proj = nn.Linear(num_classes, d_model)
+        
+        # --- AUTOREGRESSIVE CO-T SUPERVISION ---
+        # The paper states: "The model must generate CoT chains end-to-end, parity can be learned 
+        # efficiently if augmented data is employed to internally verify the soundness of 
+        # intermediate steps" AND "intermediate parities are incorporated into the loss".
+        # To accomplish "Teacher Forcing / Intermediate Supervision", we add a recurrent
+        # output sequence. We output a dimension of 1 (a single bit) iteratively.
+        self.fc = nn.Linear(d_model, 1)
+        
+        # We also need to project the previously generated bits back into the transformer 
+        # to act as the "Teacher Forcing" tokens!
+        self.bit_proj = nn.Linear(1, d_model)
+        
+        # We must NOT use batch_first=True natively because we need causal masking 
+        # so the model can't cheat and look ahead. Standard (Seq, Batch, Embed) is easier.
         self.pos_encoder = PositionalEncoding(d_model)
-        
-        # Transformer
-        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0, batch_first=True)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
-        
-        # --- CHAIN OF THOUGHT (CoT) IMPLEMENTATION ---
-        # "Task Decomposition": According to the paper, Transformers cannot 
-        # compute hidden parity leaps sequentially inside their attention matrix.
-        # Instead of outputting 1 "giant leap" frequency class integer (0-7), 
-        # we ask the model to output the 3 distinct logical parity bits making up the frequency hop.
-        self.fc = nn.Linear(d_model, 3)
 
-    def forward(self, x):
+    def forward(self, x, intermediate_bits=None):
+        """
+        x: (Batch, Seq, Channels, Height, Width) -> Standard STFT Hops
+        intermediate_bits: (Batch, Num_Bits, 1) -> The Teacher Forcing bits.
+                           If None, we do inference autoregressively!
+        """
         b, s, c, h, w = x.size()
         c_in = x.view(b * s, c, h, w)
         
@@ -134,22 +141,94 @@ class CNNTransformer(nn.Module):
         probs = torch.softmax(logits, dim=-1)
         
         # Project clean probabilities to d_model space: (Batch * SeqLen, 8) -> (Batch * SeqLen, d_model)
-        features = self.prob_proj(probs)
+        # Reshape to (Batch, SeqLen, d_model)
+        src_spatial = self.prob_proj(probs).view(b, s, -1)
         
-        # Reshape for transformer: (Batch, SeqLen, d_model)
-        src = features.view(b, s, -1)
+        # --- TEACHER FORCING LOOP (CHAIN OF THOUGHT) ---
+        # Instead of doing 1 forward pass, we create a sequence of thoughts!
+        # [Spatial Hop 1] ... [Spatial Hop 12] + [Bit 1 Thought] + [Bit 2 Thought] -> [Predicts Bit 3]
+        
+        if intermediate_bits is not None:
+             # Training Mode (Teacher Forcing)
+             # We inject the true intermediate bits as context!
+             
+             # (Batch, Num_Bits, d_model)
+             src_bits = self.bit_proj(intermediate_bits)
+             
+             # Concatenate Temporal Sequence + Thought Sequence
+             # (Batch, SeqLen + Num_Bits, d_model)
+             src = torch.cat([src_spatial, src_bits], dim=1)
+             
+             # Convert to Transformer format: (SeqLen, Batch, d_model)
+             src = src.permute(1, 0, 2)
+             src = self.pos_encoder(src)
+             
+             # Causal Mask to prevent cheating (predicting bit 2 while looking at bit 3)
+             seq_len = src.size(0)
+             mask = nn.Transformer.generate_square_subsequent_mask(seq_len).to(src.device)
+             
+             out = self.transformer_encoder(src, mask=mask)
+             
+             # We only care about the outputs corresponding to the "Thought" tokens
+             # We want to predict Bit 1, Bit 2, Bit 3.
+             # Output at index 'Spatial_Sequence_Length - 1' predicts Bit 1
+             # Output at index 'Spatial_Sequence_Length' predicts Bit 2...
+             
+             thought_outputs = out[s-1 : s-1 + intermediate_bits.size(1), :, :]
+             
+             # Output shape: (Num_Bits, Batch, 1) -> (Batch, Num_Bits)
+             logits_out = self.fc(thought_outputs).squeeze(-1).permute(1, 0)
+             return logits_out
+             
+        else:
+            # Inference Mode (End-to-End CoT Generation)
+            generated_bits = []
             
-        # We switched to batch_first=True, so pos_encoder needs adapting, 
-        # or we can just apply pos_encoder with permutes for safety
-        src = src.permute(1, 0, 2) # (S, B, E) for old-style positional encoding
-        src = self.pos_encoder(src)
-        src = src.permute(1, 0, 2) # Back to (B, S, E) for batch_first=True Transformer
-        
-        out = self.transformer_encoder(src)
-        
-        # Get the feature vector of the LAST item in the sequence
-        last = out[:, -1, :]
-        return self.fc(last)
+            # Start with an empty thought vector (e.g. 0) or just the spatial sequence
+            # For simplicity, we just use 0 as the "Start" bit token internally.
+            current_bit_token = torch.zeros(b, 1, 1).to(x.device)
+            
+            for step in range(3):
+                # (Batch, 1, d_model)
+                src_bit = self.bit_proj(current_bit_token)
+                
+                # Combine what we have so far
+                if step == 0:
+                    src = src_spatial
+                else:
+                    # Append the thought sequence
+                    # e.g [Spatial...] + [Bit 1]
+                    src = torch.cat([src_spatial, src_bit], dim=1)
+                
+                src = src.permute(1, 0, 2)
+                src = self.pos_encoder(src)
+                
+                # We don't technically need a mask during step-by-step inference, 
+                # but standard practice is to use it.
+                seq_len = src.size(0)
+                mask = nn.Transformer.generate_square_subsequent_mask(seq_len).to(src.device)
+                
+                out = self.transformer_encoder(src, mask=mask)
+                
+                # The very last token in the sequence predicts the next piece of parity math
+                last_token = out[-1, :, :]
+                
+                # Predict 1 Parity Bit
+                next_bit_logit = self.fc(last_token) 
+                
+                # Hard decision for the next teacher forcing loop!
+                next_bit = (next_bit_logit > 0).float()
+                
+                generated_bits.append(next_bit_logit)
+                
+                # Append this hard decision to our thought stream for the next iteration
+                if step == 0:
+                    current_bit_token = next_bit.unsqueeze(1)
+                else:
+                     current_bit_token = torch.cat([current_bit_token, next_bit.unsqueeze(1)], dim=1)
+            
+            # (Batch, 3)
+            return torch.cat(generated_bits, dim=-1)
 
 def main():
     print("--- Training CNN-Transformer on GOLD CODES ---")
@@ -252,8 +331,19 @@ def main():
             for i in range(3):
                 y_bits[:, i] = (y >> (2 - i)) & 1
             
+            # Create the Teacher Forcing Input Sequence
+            # We want to use a "Start" token (Bit=0), then True Bit 1, then True Bit 2.
+            # We DONT input True Bit 3, because the model is predicting Bit 3!
+            
+            # Shape (Batch, 3)
+            # Intermediate teacher bits: [0, y1, y2]
+            teacher_bits = torch.zeros(y.size(0), 3).to(DEVICE)
+            teacher_bits[:, 1] = y_bits[:, 0]
+            teacher_bits[:, 2] = y_bits[:, 1]
+            teacher_bits = teacher_bits.unsqueeze(-1) # (Batch, 3, 1)
+            
             optimizer.zero_grad()
-            out = model(X)
+            out = model(X, intermediate_bits=teacher_bits)
             
             # --- CHAIN OF THOUGHT LOSS ---
             # Paper: Parity can be learned efficiently when intermediate parities 
@@ -288,7 +378,8 @@ def main():
                 for i in range(3):
                     y_bits[:, i] = (y >> (2 - i)) & 1
                 
-                out = model(X)
+                # INFERENCE MODE: No teacher forcing! The model must generate CoT chains end-to-end
+                out = model(X, intermediate_bits=None)
                 v_loss_batch = criterion(out, y_bits)
                 val_loss += v_loss_batch.item()
                 
