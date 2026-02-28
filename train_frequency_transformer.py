@@ -112,7 +112,8 @@ class CNNTransformer(nn.Module):
         encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         
-        self.fc = nn.Linear(d_model, num_classes)
+        # We output 3 bits instead of a single class integer (8 classes)
+        self.fc = nn.Linear(d_model, 3)
 
     def forward(self, x):
         b, s, c, h, w = x.size()
@@ -187,10 +188,11 @@ def main():
     
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
-    criterion = nn.CrossEntropyLoss()
+    # We use BCEWithLogitsLoss because we are predicting 3 independent bits
+    criterion = nn.BCEWithLogitsLoss()
     
     # History Tracking
-    history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': [], 'train_seq_acc': [], 'val_seq_acc': []}
     best_val_loss = float('inf')
     
     for epoch in range(EPOCHS):
@@ -198,53 +200,79 @@ def main():
         total_loss = 0
         correct = 0
         total = 0
+        correct_seq = 0
+        total_seq = 0
         
         for X, y in train_loader:
             X, y = X.to(DEVICE), y.to(DEVICE)
             y = y.view(-1)
             
+            # Convert class label (0-7) to 3-bit binary
+            y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
+            for i in range(3):
+                y_bits[:, i] = (y >> (2 - i)) & 1
+            
             optimizer.zero_grad()
             out = model(X)
-            loss = criterion(out, y)
+            # out is [batch, 3] and y_bits is [batch, 3]
+            loss = criterion(out, y_bits)
             loss.backward()
             optimizer.step()
             
             total_loss += loss.item()
-            pred = out.argmax(dim=1)
-            correct += (pred == y).sum().item()
-            total += y.size(0)
+            
+            pred_bits = (out > 0).float()
+            correct += (pred_bits == y_bits).sum().item()
+            total += y.size(0) * 3  # 3 bits per sample
+            
+            correct_seq += (pred_bits == y_bits).all(dim=1).sum().item()
+            total_seq += y.size(0)
             
         # Validation
         val_loss = 0
         model.eval()
         v_corr = 0
         v_tot = 0
+        v_seq_corr = 0
+        v_seq_tot = 0
         with torch.no_grad():
             for X, y in val_loader:
                 X, y = X.to(DEVICE), y.to(DEVICE)
                 y = y.view(-1)
                 
+                y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
+                for i in range(3):
+                    y_bits[:, i] = (y >> (2 - i)) & 1
+                
                 out = model(X)
-                v_loss_batch = criterion(out, y)
+                v_loss_batch = criterion(out, y_bits)
                 val_loss += v_loss_batch.item()
                 
-                v_corr += (out.argmax(dim=1) == y).sum().item()
-                v_tot += y.size(0)
+                pred_bits = (out > 0).float()
+                v_corr += (pred_bits == y_bits).sum().item()
+                v_tot += y.size(0) * 3
+                
+                v_seq_corr += (pred_bits == y_bits).all(dim=1).sum().item()
+                v_seq_tot += y.size(0)
         
         # Metrics
         avg_train_loss = total_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
         train_acc = 100 * correct / total
         val_acc = 100 * v_corr / v_tot
+        train_seq_acc = 100 * correct_seq / total_seq
+        val_seq_acc = 100 * v_seq_corr / v_seq_tot
         
         history['train_loss'].append(avg_train_loss)
         history['val_loss'].append(avg_val_loss)
         history['train_acc'].append(train_acc)
         history['val_acc'].append(val_acc)
+        history['train_seq_acc'].append(train_seq_acc)
+        history['val_seq_acc'].append(val_seq_acc)
         
         scheduler.step()
         
-        print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Train Acc: {train_acc:.1f}% | Val Acc: {val_acc:.1f}%")
+        print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Bit Acc: {val_acc:.1f}% | Val Hop Acc: {val_seq_acc:.1f}%")
         
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
