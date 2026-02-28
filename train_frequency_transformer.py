@@ -8,14 +8,16 @@ import h5py
 import os
 import math
 import sys
+import matplotlib.pyplot as plt
 
 # --- Configuration ---
-BATCH_SIZE = 64
-EPOCHS = 30
+BATCH_SIZE = 128
+EPOCHS = 50
 LEARNING_RATE = 1e-3
+LOOKBACK_WINDOW = 12
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# --- 1. Dataset (RAM Loading - Same as Colab Script) ---
+# --- 1. Dataset (RAM Loading) ---
 class RAMDataset(Dataset):
     def __init__(self, h5_filepath, sequence_starts, labels, lookback_window):
         print(f"preload: Loading dataset from {h5_filepath} into RAM...")
@@ -24,7 +26,7 @@ class RAMDataset(Dataset):
         self.lookback_window = lookback_window
         
         with h5py.File(h5_filepath, 'r') as f:
-            x_data = f['X_data'][:] # Load ALL into RAM (Fast)
+            x_data = f['X_data'][:] 
             
             # Normalize Per Sample
             print("Normalizing...")
@@ -49,7 +51,7 @@ class RAMDataset(Dataset):
         start = int(self.sequence_starts[idx])
         end = start + self.lookback_window
         
-        seq = self.data[start:end] # Slice tensor
+        seq = self.data[start:end] 
         label = self.labels[idx]
         
         return seq, torch.tensor(label, dtype=torch.long)
@@ -63,7 +65,7 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1) # (S, 1, E)
+        pe = pe.unsqueeze(0).transpose(0, 1) 
         self.register_buffer('pe', pe)
 
     def forward(self, x):
@@ -74,19 +76,33 @@ class CNNTransformer(nn.Module):
     def __init__(self, num_classes, d_model=64, nhead=4, num_layers=2):
         super(CNNTransformer, self).__init__()
         
-        # Vision (Must match pre-trained)
+        # Vision (Must match train_cnn.py EXACTLY)
         self.cnn = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=(5, 3), padding=(2, 0)),
-            nn.InstanceNorm2d(16), 
+            # Layer 1
+            nn.Conv2d(1, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(4, 1)), 
+            nn.MaxPool2d(kernel_size=(4, 1), stride=(4, 1)),
             
-            nn.Conv2d(16, 32, kernel_size=(5, 1), padding='same'),
-            nn.InstanceNorm2d(32), 
+            # Layer 2
+            nn.Conv2d(32, 64, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(4, 1)), 
+            nn.MaxPool2d(kernel_size=(4, 1), stride=(4, 1)),
+
+            # Layer 3
+            nn.Conv2d(64, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
+            nn.ReLU(),
+            
+            # Layer 4
+            nn.Conv2d(32, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
+            nn.ReLU()
         )
-        self.cnn_fc = nn.Linear(32 * 64, num_classes)
+        
+        self.flat_size = 32 * 64 * 3  # 32 (Channels) * 64 (Height: 1024->256->64) * 3 (Width: Preserved) 
+        self.cnn_fc = nn.Linear(self.flat_size, num_classes)
         
         # Symbolic
         self.embedding = nn.Embedding(num_classes, d_model)
@@ -99,7 +115,6 @@ class CNNTransformer(nn.Module):
         self.fc = nn.Linear(d_model, num_classes)
 
     def forward(self, x):
-        # x: (B, S, 1, F, T)
         b, s, c, h, w = x.size()
         c_in = x.view(b * s, c, h, w)
         
@@ -110,21 +125,21 @@ class CNNTransformer(nn.Module):
             _, ids = torch.max(logits, dim=1)
             
         emb = self.embedding(ids)
-        src = emb.view(b, s, -1).permute(1, 0, 2) # (S, B, E)
+        src = emb.view(b, s, -1).permute(1, 0, 2) 
         src = self.pos_encoder(src)
         out = self.transformer_encoder(src)
         last = out[-1, :, :]
         return self.fc(last)
 
 def main():
-    print("--- Training CNN-Transformer (RAM Mode) ---")
+    print("--- Training CNN-Transformer on GOLD CODES ---")
     
-    # Paths
+    # Paths (Gold Code Specific)
     raw_h5 = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
     prep_h5 = os.path.join('data', 'synthetic', 'prepared_prediction_sequences_python.h5')
     
     if not os.path.exists(raw_h5) or not os.path.exists(prep_h5):
-        print("Data files missing!")
+        print(f"Data files missing!\nRaw: {raw_h5}\nPrep: {prep_h5}")
         return
         
     # Read Meta
@@ -137,8 +152,8 @@ def main():
     print(f"Meta Loaded. Train: {len(starts_train)}, Val: {len(starts_val)}")
     
     # Init Datasets
-    train_ds = RAMDataset(raw_h5, starts_train, y_train, 12)
-    val_ds = RAMDataset(raw_h5, starts_val, y_val, 12)
+    train_ds = RAMDataset(raw_h5, starts_train, y_train, LOOKBACK_WINDOW)
+    val_ds = RAMDataset(raw_h5, starts_val, y_val, LOOKBACK_WINDOW)
     
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False)
@@ -146,15 +161,37 @@ def main():
     # Setup Model
     model = CNNTransformer(8).to(DEVICE)
     
-    # Load Weights
+    # Load Weights (Transfer Learning)
     w_path = os.path.join('models', 'cnn_weights.pth')
     if os.path.exists(w_path):
-        print("Loading Pretrained CNN...")
+        print("Loading Pretrained CNN (Full)...")
         d = torch.load(w_path, map_location=DEVICE)
-        model.cnn.load_state_dict(d, strict=False)
+        
+        new_cnn_dict = {}
+        new_fc_dict = {}
+        
+        for k, v in d.items():
+            if k.startswith('cnn.'):
+                name = k[4:] 
+                new_cnn_dict[name] = v
+            elif k.startswith('fc.'):
+                name = k[3:]
+                new_fc_dict[name] = v
+                
+        model.cnn.load_state_dict(new_cnn_dict, strict=True)
+        model.cnn_fc.weight.data = new_fc_dict['weight']
+        model.cnn_fc.bias.data = new_fc_dict['bias']
+        print("Loaded CNN Backbone + Classification Head successfully.")
+    else:
+        print("WARNING: Pretrained weights not found!")
     
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     criterion = nn.CrossEntropyLoss()
+    
+    # History Tracking
+    history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    best_val_loss = float('inf')
     
     for epoch in range(EPOCHS):
         model.train()
@@ -194,10 +231,46 @@ def main():
                 v_corr += (out.argmax(dim=1) == y).sum().item()
                 v_tot += y.size(0)
         
+        # Metrics
+        avg_train_loss = total_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
-        print(f"Epoch {epoch+1} | Train Loss: {total_loss/len(train_loader):.4f} | Val Loss: {avg_val_loss:.4f} | Train Acc: {100*correct/total:.1f}% | Val Acc: {100*v_corr/v_tot:.1f}%")
+        train_acc = 100 * correct / total
+        val_acc = 100 * v_corr / v_tot
         
-        torch.save(model.state_dict(), os.path.join('models', 'cnn_transformer.pth'))
+        history['train_loss'].append(avg_train_loss)
+        history['val_loss'].append(avg_val_loss)
+        history['train_acc'].append(train_acc)
+        history['val_acc'].append(val_acc)
+        
+        scheduler.step()
+        
+        print(f"Epoch {epoch+1}/{EPOCHS} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Train Acc: {train_acc:.1f}% | Val Acc: {val_acc:.1f}%")
+        
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            torch.save(model.state_dict(), os.path.join('models', 'gold_code_transformer_best.pth'))
+            print("  --> Best Model Saved")
+            
+    # Plotting
+    plt.figure(figsize=(12, 5))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(history['train_loss'], label='Train Loss')
+    plt.plot(history['val_loss'], label='Val Loss')
+    plt.title('Gold Code Loss History')
+    plt.xlabel('Epoch')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history['train_acc'], label='Train Acc')
+    plt.plot(history['val_acc'], label='Val Acc')
+    plt.title('Gold Code Accuracy History')
+    plt.xlabel('Epoch')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('results/training_history_gold.png')
+    print("Training Complete. History plot saved to results/training_history_gold.png")
 
 if __name__ == "__main__":
     main()

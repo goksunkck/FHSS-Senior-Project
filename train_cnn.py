@@ -94,7 +94,7 @@ def train():
     print("--- Starting CNN Sanity Check ---")
     
     # Path to RAW dataset (not sequences)
-    dataset_path = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
+    dataset_path = os.path.join('data', 'synthetic', 'm_sequence_dataset.h5')
     
     if not os.path.exists(dataset_path):
         print(f"Error: {dataset_path} not found.")
@@ -165,7 +165,7 @@ def train():
     if not os.path.exists('models'):
         os.makedirs('models')
     weight_path = os.path.join('models', 'cnn_weights.pth')
-    torch.save(model.cnn.state_dict(), weight_path)
+    torch.save(model.state_dict(), weight_path) # Save FULL model (Conv + FC)
     print(f"Saved CNN weights to {weight_path}")
 
 if __name__ == "__main__":

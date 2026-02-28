@@ -1,0 +1,35 @@
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.5cm,
+        layer/.style={draw, rectangle, minimum height=2cm, minimum width=1cm, align=center, fill=blue!10},
+        emb/.style={draw, rectangle, minimum height=0.5cm, minimum width=3cm, fill=green!10},
+        trans/.style={draw, rectangle, minimum height=2.5cm, minimum width=2.5cm, fill=orange!10, rounded corners},
+        arrow/.style={->, thick, >=stealth}
+    ]
+
+    % Input
+    \node[draw, rectangle, minimum size=1.5cm, pattern=grid, label=below:{Input (STFT)}] (input) {};
+
+    % CNN Stack
+    \node[layer, right=of input, label=above:{CNN Backbone}] (cnn) {4 $\times$ Conv2d\\+\\MaxPool};
+
+    % Features
+    \node[emb, right=of cnn, rotate=90, label=right:{Embeddings}] (feats) {};
+
+    % Transformer
+    \node[trans, right=1cm of feats, label=above:{Transformer Encoder}] (attn) {Self-Attention\\+\\Feed Forward};
+
+    % Output Head
+    \node[draw, circle, right=of attn, minimum size=1cm, fill=red!10, label=below:{Softmax}] (out) {Class};
+
+    % Arrows
+    \draw[arrow] (input) -- (cnn);
+    \draw[arrow] (cnn) -- (feats);
+    \draw[arrow] (feats) -- (attn);
+    \draw[arrow] (attn) -- (out);
+
+    \end{tikzpicture}
+    \caption{Hybrid CNN-Transformer Architecture. The CNN extracts spatial frequency features from the STFT, which are then processed as a sequence by the Transformer to predict the next hop.}
+    \label{fig:arch_diagram}
+\end{figure}

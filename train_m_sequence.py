@@ -55,7 +55,82 @@ class RAMDataset(Dataset):
         
         return seq, torch.tensor(label, dtype=torch.long)
 
-# ... (Previous Model Code Omitted) ...
+# --- 2. Positional Encoding ---
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1) # (S, 1, E)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        return x + self.pe[:x.size(0), :]
+
+# --- 3. Model Architecture (CNN-Transformer) ---
+class CNNTransformer(nn.Module):
+    def __init__(self, num_classes, d_model=64, nhead=4, num_layers=2):
+        super(CNNTransformer, self).__init__()
+        
+        # Vision (Must match train_cnn.py EXACTLY)
+        self.cnn = nn.Sequential(
+            # Layer 1
+            nn.Conv2d(1, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(4, 1), stride=(4, 1)),
+            
+            # Layer 2
+            nn.Conv2d(32, 64, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(4, 1), stride=(4, 1)),
+
+            # Layer 3
+            nn.Conv2d(64, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
+            nn.ReLU(),
+            
+            # Layer 4
+            nn.Conv2d(32, 32, kernel_size=(5, 1), stride=1, padding=(2, 0)),
+            nn.InstanceNorm2d(32),
+            nn.ReLU()
+        )
+        
+        # Calculated from train_cnn.py: (32 channels * 64 height * 3 width)
+        self.flat_size = 32 * 64 * 3 
+        self.cnn_fc = nn.Linear(self.flat_size, num_classes)
+        
+        # Symbolic
+        self.embedding = nn.Embedding(num_classes, d_model)
+        self.pos_encoder = PositionalEncoding(d_model)
+        
+        # Transformer
+        encoder_layers = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+        
+        self.fc = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):
+        # x: (B, S, 1, F, T)
+        b, s, c, h, w = x.size()
+        c_in = x.view(b * s, c, h, w)
+        
+        with torch.no_grad():
+            c_out = self.cnn(c_in)
+            c_flat = c_out.view(c_out.size(0), -1)
+            logits = self.cnn_fc(c_flat)
+            _, ids = torch.max(logits, dim=1)
+            
+        emb = self.embedding(ids)
+        src = emb.view(b, s, -1).permute(1, 0, 2) # (S, B, E)
+        src = self.pos_encoder(src)
+        out = self.transformer_encoder(src)
+        last = out[-1, :, :]
+        return self.fc(last)
 
 def main():
     print("--- Training CNN-Transformer on M-SEQUENCES ---")
@@ -93,12 +168,41 @@ def main():
     # Setup Model
     model = CNNTransformer(8).to(DEVICE)
     
-    # Load Weights (Transfer Learning from Gold Code CNN is valid because physics is same)
+    # Load Weights (Transfer Learning)
     w_path = os.path.join('models', 'cnn_weights.pth')
     if os.path.exists(w_path):
-        print("Loading Pretrained CNN...")
+        print("Loading Pretrained CNN (Full)...")
         d = torch.load(w_path, map_location=DEVICE)
-        model.cnn.load_state_dict(d, strict=False)
+        
+        # 1. Load CNN Backbone (Keys match: cnn.0.weight -> cnn.0.weight)
+        # Note: If saved as FULL model, keys are "cnn.0.weight", "fc.weight"
+        # model.cnn keys are "0.weight" (because model.cnn IS the sequential)
+        # We need to handle prefix mismatch if present.
+        
+        # Check if keys have "cnn." prefix (from SimpleCNN state_dict)
+        new_cnn_dict = {}
+        new_fc_dict = {}
+        
+        for k, v in d.items():
+            if k.startswith('cnn.'):
+                # cnn.0.weight -> 0.weight (for model.cnn)
+                name = k[4:] 
+                new_cnn_dict[name] = v
+            elif k.startswith('fc.'):
+                # fc.weight -> weight (for mapping to cnn_fc)
+                name = k[3:]
+                new_fc_dict[name] = v
+                
+        # Load Backbone
+        model.cnn.load_state_dict(new_cnn_dict, strict=True)
+        
+        # Load Head (fc -> cnn_fc)
+        # model.cnn_fc expects "weight" and "bias"
+        model.cnn_fc.weight.data = new_fc_dict['weight']
+        model.cnn_fc.bias.data = new_fc_dict['bias']
+        print("Loaded CNN Backbone + Classification Head successfully.")
+    else:
+        print("WARNING: Pretrained weights not found! Training from scratch (Harder).")
     
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
