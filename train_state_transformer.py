@@ -57,6 +57,44 @@ class RAMStateDataset(Dataset):
             self.data = torch.from_numpy(x_data).float().unsqueeze(1) # (N, 1, 1024, 3)
             
             print(f"Loaded {self.data.shape}")
+        
+        # --- PRECOMPUTE LFSR STATES FOR O(1) LOOKUP ---
+        # Instead of computing the LFSR step inside __getitem__ which is incredibly slow,
+        # we precompute the 256 states for all 1024 unique Gold Code seeds!
+        print("Precomputing LFSR internal states for all seeds to speed up training...")
+        self.state_cache = {}
+        for seed_int in range(1, 1024):  # 1023 max seeds
+            pn_initial1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+            seed_bin_str = format(seed_int, '010b')
+            pn_initial2 = [int(b) for b in seed_bin_str]
+            
+            lfsr1 = SimpleLFSR([10, 3, 0], pn_initial1)
+            lfsr2 = SimpleLFSR([10, 7, 0], pn_initial2)
+            
+            states_for_seed = []
+            for hop in range(256):
+                # Save state BEFORE advancing for this hop
+                state1 = lfsr1.get_state_bits()
+                state2 = lfsr2.get_state_bits()
+                
+                # Convert to -1, +1 immediately for our math
+                bipolar_state = [(b * 2.0 - 1.0) for b in (state1 + state2)]
+                states_for_seed.append(torch.tensor(bipolar_state, dtype=torch.float))
+                
+                # Advance 3 bits for the next hop
+                lfsr1.step()
+                lfsr2.step()
+                lfsr1.step()
+                lfsr2.step()
+                lfsr1.step()
+                lfsr2.step()
+                
+            self.state_cache[seed_int] = states_for_seed
+            
+        # For seed 0, which might technically exist but is degenerate
+        self.state_cache[0] = [torch.zeros(20, dtype=torch.float) for _ in range(256)]
+        
+        print("LFSR Cache built successfully!")
 
     def __len__(self):
         return len(self.sequence_starts)
@@ -66,34 +104,13 @@ class RAMStateDataset(Dataset):
         end = start + self.lookback_window
         seq = self.data[start:end] 
         
-        # --- GENERATING THE TRUE INTERNAL STATE ---
+        # --- O(1) LOOKUP TRUE INTERNAL STATE ---
         target_global_idx = end # The hop we are trying to predict
         local_target_hop = target_global_idx % 256 # Assuming num_hops = 256
-        
         seed_int = int(self.seed_vals[target_global_idx][0])
         
-        # Init Gold Code LFSRs
-        pn_initial1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-        seed_bin_str = format(seed_int, '010b')
-        pn_initial2 = [int(b) for b in seed_bin_str]
-        
-        lfsr1 = SimpleLFSR([10, 3, 0], pn_initial1)
-        lfsr2 = SimpleLFSR([10, 7, 0], pn_initial2)
-        
-        # Advance the LFSR exactly up to the moment BEFORE this hop is generated
-        # 3 bits generated per hop
-        bits_to_advance = local_target_hop * 3
-        for _ in range(bits_to_advance):
-            lfsr1.step()
-            lfsr2.step()
-            
-        # The true 20-bit internal memory state of the device at this exact moment!
-        # This is the ultimate "Chain of Thought" teacher.
-        state1 = lfsr1.get_state_bits()
-        state2 = lfsr2.get_state_bits()
-        full_20_bit_state = state1 + state2
-        
-        label = torch.tensor(full_20_bit_state, dtype=torch.float)
+        # Fetch the exact 20-bit internal memory state at this exact moment!
+        label = self.state_cache[seed_int][local_target_hop]
         
         return seq, label
 
@@ -237,8 +254,8 @@ def main():
     optimizer = optim.AdamW(trainable_params, lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     
-    # BCE loss is perfect for 20 independent bits!
-    criterion = nn.BCEWithLogitsLoss()
+    # MSE loss is perfect for targets mapped to -1 and 1
+    criterion = nn.MSELoss()
     
     history = {'train_loss': [], 'val_loss': [], 'train_seq_acc': [], 'val_seq_acc': [], 'val_bit_acc': []}
     best_val_loss = float('inf')
@@ -261,7 +278,8 @@ def main():
             
             total_loss += loss.item()
             
-            pred_bits = (out > 0).float()
+            # Map predictions back to (-1, 1) space
+            pred_bits = (out > 0).float() * 2.0 - 1.0
             # How many sequences did we nail the ENTIRE 20-bit state exactly correct?
             correct_state += (pred_bits == y_state).all(dim=1).sum().item()
             total_seq += y_state.size(0)
@@ -280,7 +298,8 @@ def main():
                 v_loss_batch = criterion(out, y_state)
                 val_loss += v_loss_batch.item()
                 
-                pred_bits = (out > 0).float()
+                # Map evaluation predictions to {-1, 1} space
+                pred_bits = (out > 0).float() * 2.0 - 1.0
                 v_seq_corr += (pred_bits == y_state).all(dim=1).sum().item()
                 v_seq_tot += y_state.size(0)
                 

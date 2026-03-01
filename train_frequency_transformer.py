@@ -219,8 +219,8 @@ class CNNTransformer(nn.Module):
                 # Output at s-1 predicts bit 1
                 next_bit_logit = self.fc(out[s-1 + step, :, :])
                 
-                # Hard decision for the next teacher forcing loop!
-                next_bit = (next_bit_logit > 0).float()
+                # Hard decision for the next teacher forcing loop! (-1 or +1)
+                next_bit = (next_bit_logit > 0).float() * 2.0 - 1.0
                 
                 generated_bits.append(next_bit_logit)
                 
@@ -311,8 +311,9 @@ def main():
     
     optimizer = optim.AdamW(trainable_params, lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
-    # We use BCEWithLogitsLoss because we are predicting 3 independent bits
-    criterion = nn.BCEWithLogitsLoss()
+    
+    # Paper uses Squared Error (MSE) when mapping XOR math to (-1, 1)
+    criterion = nn.MSELoss()
     
     # History Tracking
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': [], 'train_seq_acc': [], 'val_seq_acc': []}
@@ -330,10 +331,11 @@ def main():
             X, y = X.to(DEVICE), y.to(DEVICE)
             y = y.view(-1)
             
-            # Convert class label (0-7) to 3-bit binary
+            # Convert class label (0-7) to 3-bit binary mapped to {-1, +1}
             y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
             for i in range(3):
-                y_bits[:, i] = (y >> (2 - i)) & 1
+                bit = (y >> (2 - i)) & 1
+                y_bits[:, i] = bit.float() * 2.0 - 1.0
             
             # Create the Teacher Forcing Input Sequence
             # According to the paper:
@@ -359,7 +361,8 @@ def main():
             
             total_loss += loss.item()
             
-            pred_bits = (out > 0).float()
+            # Map predictions back to (-1, 1) space for evaluation
+            pred_bits = (out > 0).float() * 2.0 - 1.0
             correct += (pred_bits == y_bits).sum().item()
             total += y.size(0) * 3  # 3 bits per sample
             
@@ -378,16 +381,19 @@ def main():
                 X, y = X.to(DEVICE), y.to(DEVICE)
                 y = y.view(-1)
                 
+                # Map testing targets to {-1, 1}
                 y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
                 for i in range(3):
-                    y_bits[:, i] = (y >> (2 - i)) & 1
+                    bit = (y >> (2 - i)) & 1
+                    y_bits[:, i] = bit.float() * 2.0 - 1.0
                 
                 # INFERENCE MODE: No teacher forcing! The model must generate CoT chains end-to-end
                 out = model(X, intermediate_bits=None)
                 v_loss_batch = criterion(out, y_bits)
                 val_loss += v_loss_batch.item()
                 
-                pred_bits = (out > 0).float()
+                # Map evaluation predictions to {-1, 1}
+                pred_bits = (out > 0).float() * 2.0 - 1.0
                 v_corr += (pred_bits == y_bits).sum().item()
                 v_tot += y.size(0) * 3
                 

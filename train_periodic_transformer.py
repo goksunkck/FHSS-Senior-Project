@@ -185,7 +185,7 @@ class CNNTransformer(nn.Module):
                 out = self.transformer_encoder(src, mask=mask)
                 
                 next_bit_logit = self.fc(out[s-1 + step, :, :])
-                next_bit = (next_bit_logit > 0).float()
+                next_bit = (next_bit_logit > 0).float() * 2.0 - 1.0
                 
                 generated_bits.append(next_bit_logit)
                 
@@ -263,7 +263,7 @@ def main():
     
     optimizer = optim.AdamW(trainable_params, lr=LEARNING_RATE)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.MSELoss()
     
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': [], 'train_seq_acc': [], 'val_seq_acc': []}
     best_val_loss = float('inf')
@@ -282,7 +282,8 @@ def main():
             
             y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
             for i in range(3):
-                y_bits[:, i] = (y >> (2 - i)) & 1
+                bit = (y >> (2 - i)) & 1
+                y_bits[:, i] = bit.float() * 2.0 - 1.0
             
             teacher_bits = y_bits[:, :2].unsqueeze(-1)
             
@@ -295,7 +296,7 @@ def main():
             
             total_loss += loss.item()
             
-            pred_bits = (out > 0).float()
+            pred_bits = (out > 0).float() * 2.0 - 1.0
             correct += (pred_bits == y_bits).sum().item()
             total += y.size(0) * 3 
             
@@ -315,13 +316,14 @@ def main():
                 
                 y_bits = torch.zeros(y.size(0), 3).to(DEVICE)
                 for i in range(3):
-                    y_bits[:, i] = (y >> (2 - i)) & 1
+                    bit = (y >> (2 - i)) & 1
+                    y_bits[:, i] = bit.float() * 2.0 - 1.0
                 
                 out = model(X, intermediate_bits=None)
                 v_loss_batch = criterion(out, y_bits)
                 val_loss += v_loss_batch.item()
                 
-                pred_bits = (out > 0).float()
+                pred_bits = (out > 0).float() * 2.0 - 1.0
                 v_corr += (pred_bits == y_bits).sum().item()
                 v_tot += y.size(0) * 3
                 
