@@ -164,6 +164,7 @@ class StateTransformer(nn.Module):
         self.flat_size = 32 * 64 * 3 
         self.cnn_fc = nn.Linear(self.flat_size, num_classes)
         self.prob_proj = nn.Linear(num_classes, d_model)
+        self.bit_proj = nn.Linear(1, d_model)
         
         self.pos_encoder = PositionalEncoding(d_model)
         
@@ -171,34 +172,70 @@ class StateTransformer(nn.Module):
         encoder_layers = PeriodicTransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         
-        # Output is NOT 3 bits anymore! It predicts the full 20 bit internal state of the device!
-        self.fc = nn.Linear(d_model, 20)
+        # Step-by-step logic predicts 1 bit at a time
+        self.fc = nn.Linear(d_model, 1)
 
-    def forward(self, x):
+    def generate_square_subsequent_mask(self, sz):
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
+
+    def forward(self, x, y_state=None):
+        import torch.nn.functional as F
         b, s, c, h, w = x.size()
         c_in = x.view(b * s, c, h, w)
         
-        c_out = self.cnn(c_in)
-        c_flat = c_out.view(c_out.size(0), -1)
+        # Freeze CNN parts and force EXACT discrete boolean values
+        with torch.no_grad():
+            c_out = self.cnn(c_in)
+            c_flat = c_out.view(c_out.size(0), -1)
+            logits = self.cnn_fc(c_flat)
+            # Emulate pure logical inputs via argmax instead of fuzzy continuous softmax probabilities
+            preds = torch.argmax(logits, dim=-1)
+            preds_onehot = F.one_hot(preds, num_classes=8).float()
+            
+        vis_emb = self.prob_proj(preds_onehot).view(b, s, -1)
         
-        logits = self.cnn_fc(c_flat)
-        probs = torch.softmax(logits, dim=-1)
-        
-        src = self.prob_proj(probs).view(b, s, -1)
-        
-        src = src.permute(1, 0, 2)
-        src = self.pos_encoder(src)
-        
-        # Because we predict everything in 1 shot, we don't strictly need a causal mask for an autoregressive bit loop.
-        # But we DO still mask the spatial tokens depending on standard transformer practices.
-        # But actually, PyTorch transformer by default uses all tokens if no mask is provided.
-        out = self.transformer_encoder(src)
-        
-        # Take the final spatial sequence token to predict the state
-        last_token = out[-1, :, :]
-        
-        # Output shape: (Batch, 20)
-        return self.fc(last_token)
+        if y_state is not None:
+            # --- TEACHER FORCING MULTI-STEP (Chain of Thought training) ---
+            teacher_bits = y_state[:, :-1].unsqueeze(-1)
+            state_emb = self.bit_proj(teacher_bits)
+            
+            src = torch.cat([vis_emb, state_emb], dim=1)
+            seq_len = src.size(1)
+            
+            src = src.permute(1, 0, 2)
+            src = self.pos_encoder(src)
+            
+            mask = self.generate_square_subsequent_mask(seq_len).to(src.device)
+            out = self.transformer_encoder(src, mask=mask)
+            
+            # Extract exactly the 20 output elements corresponding to the predictions
+            state_preds = self.fc(out[s-1:, :, :])
+            return state_preds.squeeze(-1).permute(1, 0)
+        else:
+            # --- AUTOREGRESSIVE INFERENCE ---
+            curr_src = vis_emb
+            generated_bits = []
+            
+            for step in range(20):
+                src_perm = curr_src.permute(1, 0, 2)
+                src_encoded = self.pos_encoder(src_perm)
+                
+                seq_len = src_encoded.size(0)
+                mask = self.generate_square_subsequent_mask(seq_len).to(curr_src.device)
+                
+                out = self.transformer_encoder(src_encoded, mask=mask)
+                
+                next_bit_logit = self.fc(out[-1, :, :])
+                generated_bits.append(next_bit_logit)
+                
+                if step < 19:
+                    next_bit = (next_bit_logit > 0).float() * 2.0 - 1.0
+                    next_bit_emb = self.bit_proj(next_bit).unsqueeze(1)
+                    curr_src = torch.cat([curr_src, next_bit_emb], dim=1)
+                    
+            return torch.cat(generated_bits, dim=-1)
 
 def main():
     print("--- Training State-Tracking Periodic Transformer ---")
@@ -222,7 +259,8 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False)
     
-    model = StateTransformer(8).to(DEVICE)
+    # Set layers and heads to 1 for exact mathematical match to proofs
+    model = StateTransformer(num_classes=8, d_model=64, nhead=1, num_layers=1).to(DEVICE)
     
     w_path = os.path.join('models', 'cnn_weights.pth')
     if os.path.exists(w_path):
@@ -270,7 +308,7 @@ def main():
             X, y_state = X.to(DEVICE), y_state.to(DEVICE)
             
             optimizer.zero_grad()
-            out = model(X) # Predict 20 bits
+            out = model(X, y_state=y_state) # Teacher Forcing properly applied!
             
             loss = criterion(out, y_state)
             loss.backward()
@@ -294,6 +332,7 @@ def main():
             for X, y_state in val_loader:
                 X, y_state = X.to(DEVICE), y_state.to(DEVICE)
                 
+                # Do not pass y_state during validation to force True Autoregressive Inference
                 out = model(X)
                 v_loss_batch = criterion(out, y_state)
                 val_loss += v_loss_batch.item()
