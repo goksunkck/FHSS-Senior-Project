@@ -1,0 +1,406 @@
+--- Training State-Tracking Periodic Transformer ---
+Meta Loaded. Train: 341600, Val: 73200
+preload: Loading dataset from data/synthetic/classification_dataset_stft_random_deg10_python.h5 into RAM...
+Normalizing globally... Min: -87.28714752197266, Max: 42.74210739135742
+Loaded torch.Size([512000, 1, 1024, 3])
+Precomputing LFSR internal states for all seeds to speed up training...
+LFSR Cache built successfully!
+preload: Loading dataset from data/synthetic/classification_dataset_stft_random_deg10_python.h5 into RAM...
+Normalizing globally... Min: -87.28714752197266, Max: 42.74210739135742
+Loaded torch.Size([512000, 1, 1024, 3])
+Precomputing LFSR internal states for all seeds to speed up training...
+LFSR Cache built successfully!
+/content/FHSS-Senior-Project/train_state_transformer.py:173: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.self_attn.batch_first was not True(use batch_first for better inference performance)
+  self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+Loading Pretrained CNN (Full)...
+Loaded CNN Backbone + Classification Head successfully.
+Epoch 1/350 | Train Loss: 0.9413 | Val Loss: 1.0758 | Val Bit Acc: 49.6% | Exact 20-Bit State Acc: 0.0%
+Epoch 2/350 | Train Loss: 0.8953 | Val Loss: 1.0569 | Val Bit Acc: 50.3% | Exact 20-Bit State Acc: 0.0%
+  --> Best Model Saved
+Epoch 3/350 | Train Loss: 0.8944 | Val Loss: 1.0303 | Val Bit Acc: 50.7% | Exact 20-Bit State Acc: 0.0%
+  --> Best Model Saved
+Epoch 4/350 | Train Loss: 0.8941 | Val Loss: 1.0201 | Val Bit Acc: 50.1% | Exact 20-Bit State Acc: 0.0%
+  --> Best Model Saved
+Epoch 5/350 | Train Loss: 0.8937 | Val Loss: 1.0480 | Val Bit Acc: 50.7% | Exact 20-Bit State Acc: 0.0%
+Epoch 6/350 | Train Loss: 0.8935 | Val Loss: 1.0595 | Val Bit Acc: 50.5% | Exact 20-Bit State Acc: 0.0%
+Epoch 7/350 | Train Loss: 0.8933 | Val Loss: 1.0504 | Val Bit Acc: 50.4% | Exact 20-Bit State Acc: 0.0%
+Epoch 8/350 | Train Loss: 0.8932 | Val Loss: 1.0466 | Val Bit Acc: 50.2% | Exact 20-Bit State Acc: 0.0%
+Epoch 9/350 | Train Loss: 0.8931 | Val Loss: 1.0519 | Val Bit Acc: 50.8% | Exact 20-Bit State Acc: 0.0%
+Epoch 10/350 | Train Loss: 0.8931 | Val Loss: 1.0578 | Val Bit Acc: 50.4% | Exact 20-Bit State Acc: 0.0%
+Epoch 11/350 | Train Loss: 0.8930 | Val Loss: 1.0591 | Val Bit Acc: 50.3% | Exact 20-Bit State Acc: 0.0%
+Epoch 12/350 | Train Loss: 0.8929 | Val Loss: 1.0506 | Val Bit Acc: 50.9% | Exact 20-Bit State Acc: 0.0%
+Epoch 13/350 | Train Loss: 0.8880 | Val Loss: 1.0879 | Val Bit Acc: 50.9% | Exact 20-Bit State Acc: 0.0%
+Epoch 14/350 | Train Loss: 0.8165 | Val Loss: 1.1725 | Val Bit Acc: 50.7% | Exact 20-Bit State Acc: 0.0%
+Epoch 15/350 | Train Loss: 0.7468 | Val Loss: 1.2502 | Val Bit Acc: 52.0% | Exact 20-Bit State Acc: 0.0%
+Epoch 16/350 | Train Loss: 0.6327 | Val Loss: 1.2857 | Val Bit Acc: 52.7% | Exact 20-Bit State Acc: 0.0%
+Epoch 17/350 | Train Loss: 0.6058 | Val Loss: 1.2957 | Val Bit Acc: 52.3% | Exact 20-Bit State Acc: 0.0%
+Epoch 18/350 | Train Loss: 0.5671 | Val Loss: 1.2873 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.1%
+Epoch 19/350 | Train Loss: 0.5544 | Val Loss: 1.2862 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.1%
+Epoch 20/350 | Train Loss: 0.5535 | Val Loss: 1.2923 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.1%
+Epoch 21/350 | Train Loss: 0.5534 | Val Loss: 1.2930 | Val Bit Acc: 53.8% | Exact 20-Bit State Acc: 0.0%
+Epoch 22/350 | Train Loss: 0.5532 | Val Loss: 1.2851 | Val Bit Acc: 53.8% | Exact 20-Bit State Acc: 0.1%
+Epoch 23/350 | Train Loss: 0.5363 | Val Loss: 1.3147 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.1%
+Epoch 24/350 | Train Loss: 0.5226 | Val Loss: 1.3152 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.1%
+Epoch 25/350 | Train Loss: 0.5224 | Val Loss: 1.3373 | Val Bit Acc: 53.6% | Exact 20-Bit State Acc: 0.1%
+Epoch 26/350 | Train Loss: 0.4743 | Val Loss: 1.3905 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.2%
+Epoch 27/350 | Train Loss: 0.4540 | Val Loss: 1.3811 | Val Bit Acc: 54.0% | Exact 20-Bit State Acc: 0.2%
+Epoch 28/350 | Train Loss: 0.4539 | Val Loss: 1.3865 | Val Bit Acc: 53.9% | Exact 20-Bit State Acc: 0.2%
+Epoch 29/350 | Train Loss: 0.4535 | Val Loss: 1.3781 | Val Bit Acc: 54.3% | Exact 20-Bit State Acc: 0.2%
+Epoch 30/350 | Train Loss: 0.4184 | Val Loss: 1.3275 | Val Bit Acc: 56.8% | Exact 20-Bit State Acc: 0.3%
+Epoch 31/350 | Train Loss: 0.4107 | Val Loss: 1.3397 | Val Bit Acc: 56.6% | Exact 20-Bit State Acc: 0.4%
+Epoch 32/350 | Train Loss: 0.4102 | Val Loss: 1.3340 | Val Bit Acc: 56.5% | Exact 20-Bit State Acc: 0.4%
+Epoch 33/350 | Train Loss: 0.3969 | Val Loss: 1.0264 | Val Bit Acc: 65.2% | Exact 20-Bit State Acc: 0.8%
+Epoch 34/350 | Train Loss: 0.3493 | Val Loss: 0.5045 | Val Bit Acc: 79.5% | Exact 20-Bit State Acc: 1.4%
+  --> Best Model Saved
+Epoch 35/350 | Train Loss: 0.3149 | Val Loss: 0.3195 | Val Bit Acc: 84.5% | Exact 20-Bit State Acc: 1.6%
+  --> Best Model Saved
+Epoch 36/350 | Train Loss: 0.3101 | Val Loss: 0.3181 | Val Bit Acc: 84.5% | Exact 20-Bit State Acc: 1.6%
+  --> Best Model Saved
+Epoch 37/350 | Train Loss: 0.3101 | Val Loss: 0.3273 | Val Bit Acc: 84.2% | Exact 20-Bit State Acc: 1.4%
+Epoch 38/350 | Train Loss: 0.3099 | Val Loss: 0.3175 | Val Bit Acc: 84.6% | Exact 20-Bit State Acc: 1.5%
+  --> Best Model Saved
+Epoch 39/350 | Train Loss: 0.3098 | Val Loss: 0.3194 | Val Bit Acc: 84.5% | Exact 20-Bit State Acc: 1.5%
+Epoch 40/350 | Train Loss: 0.3090 | Val Loss: 0.3157 | Val Bit Acc: 84.6% | Exact 20-Bit State Acc: 1.4%
+  --> Best Model Saved
+Epoch 41/350 | Train Loss: 0.3079 | Val Loss: 0.3185 | Val Bit Acc: 84.5% | Exact 20-Bit State Acc: 1.4%
+Epoch 42/350 | Train Loss: 0.3070 | Val Loss: 0.3175 | Val Bit Acc: 84.6% | Exact 20-Bit State Acc: 1.4%
+Epoch 43/350 | Train Loss: 0.3069 | Val Loss: 0.3166 | Val Bit Acc: 84.5% | Exact 20-Bit State Acc: 1.5%
+Epoch 44/350 | Train Loss: 0.3067 | Val Loss: 0.3196 | Val Bit Acc: 84.4% | Exact 20-Bit State Acc: 1.4%
+Epoch 45/350 | Train Loss: 0.3057 | Val Loss: 0.3083 | Val Bit Acc: 85.0% | Exact 20-Bit State Acc: 1.7%
+  --> Best Model Saved
+Epoch 46/350 | Train Loss: 0.3039 | Val Loss: 0.3090 | Val Bit Acc: 85.0% | Exact 20-Bit State Acc: 1.7%
+Epoch 47/350 | Train Loss: 0.3034 | Val Loss: 0.3155 | Val Bit Acc: 84.6% | Exact 20-Bit State Acc: 1.3%
+Epoch 48/350 | Train Loss: 0.2925 | Val Loss: 0.3443 | Val Bit Acc: 85.6% | Exact 20-Bit State Acc: 4.0%
+Epoch 49/350 | Train Loss: 0.2289 | Val Loss: 0.3296 | Val Bit Acc: 86.5% | Exact 20-Bit State Acc: 5.2%
+Epoch 50/350 | Train Loss: 0.2204 | Val Loss: 0.3225 | Val Bit Acc: 87.0% | Exact 20-Bit State Acc: 6.1%
+Epoch 51/350 | Train Loss: 0.1875 | Val Loss: 0.1820 | Val Bit Acc: 91.7% | Exact 20-Bit State Acc: 11.6%
+  --> Best Model Saved
+Epoch 52/350 | Train Loss: 0.1628 | Val Loss: 0.1750 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 12.2%
+  --> Best Model Saved
+Epoch 53/350 | Train Loss: 0.1627 | Val Loss: 0.1783 | Val Bit Acc: 91.8% | Exact 20-Bit State Acc: 12.0%
+Epoch 54/350 | Train Loss: 0.1623 | Val Loss: 0.1690 | Val Bit Acc: 92.1% | Exact 20-Bit State Acc: 12.4%
+  --> Best Model Saved
+Epoch 55/350 | Train Loss: 0.1623 | Val Loss: 0.1721 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 11.5%
+Epoch 56/350 | Train Loss: 0.1622 | Val Loss: 0.1708 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 11.8%
+Epoch 57/350 | Train Loss: 0.1621 | Val Loss: 0.1766 | Val Bit Acc: 91.8% | Exact 20-Bit State Acc: 11.5%
+Epoch 58/350 | Train Loss: 0.1622 | Val Loss: 0.1723 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 12.0%
+Epoch 59/350 | Train Loss: 0.1619 | Val Loss: 0.1690 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 12.1%
+Epoch 60/350 | Train Loss: 0.1620 | Val Loss: 0.1724 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 11.9%
+Epoch 61/350 | Train Loss: 0.1619 | Val Loss: 0.1686 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.6%
+  --> Best Model Saved
+Epoch 62/350 | Train Loss: 0.1619 | Val Loss: 0.1688 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 12.0%
+Epoch 63/350 | Train Loss: 0.1618 | Val Loss: 0.1724 | Val Bit Acc: 91.8% | Exact 20-Bit State Acc: 11.7%
+Epoch 64/350 | Train Loss: 0.1618 | Val Loss: 0.1692 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.9%
+Epoch 65/350 | Train Loss: 0.1618 | Val Loss: 0.1698 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.9%
+Epoch 66/350 | Train Loss: 0.1618 | Val Loss: 0.1719 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 12.0%
+Epoch 67/350 | Train Loss: 0.1617 | Val Loss: 0.1729 | Val Bit Acc: 91.8% | Exact 20-Bit State Acc: 11.9%
+Epoch 68/350 | Train Loss: 0.1617 | Val Loss: 0.1713 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 11.8%
+Epoch 69/350 | Train Loss: 0.1615 | Val Loss: 0.1687 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.9%
+Epoch 70/350 | Train Loss: 0.1618 | Val Loss: 0.1690 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.9%
+Epoch 71/350 | Train Loss: 0.1616 | Val Loss: 0.1722 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 11.8%
+Epoch 72/350 | Train Loss: 0.1618 | Val Loss: 0.1710 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.8%
+Epoch 73/350 | Train Loss: 0.1617 | Val Loss: 0.1693 | Val Bit Acc: 91.9% | Exact 20-Bit State Acc: 12.0%
+Epoch 74/350 | Train Loss: 0.1615 | Val Loss: 0.1743 | Val Bit Acc: 91.8% | Exact 20-Bit State Acc: 11.9%
+Epoch 75/350 | Train Loss: 0.1615 | Val Loss: 0.1691 | Val Bit Acc: 92.0% | Exact 20-Bit State Acc: 11.7%
+Epoch 76/350 | Train Loss: 0.1613 | Val Loss: 0.1688 | Val Bit Acc: 92.1% | Exact 20-Bit State Acc: 12.9%
+Epoch 77/350 | Train Loss: 0.1318 | Val Loss: 0.1198 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.1%
+  --> Best Model Saved
+Epoch 78/350 | Train Loss: 0.1124 | Val Loss: 0.1202 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.1%
+Epoch 79/350 | Train Loss: 0.1123 | Val Loss: 0.1202 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.8%
+Epoch 80/350 | Train Loss: 0.1124 | Val Loss: 0.1196 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.2%
+  --> Best Model Saved
+Epoch 81/350 | Train Loss: 0.1123 | Val Loss: 0.1202 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.4%
+Epoch 82/350 | Train Loss: 0.1123 | Val Loss: 0.1238 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.0%
+Epoch 83/350 | Train Loss: 0.1121 | Val Loss: 0.1236 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.6%
+Epoch 84/350 | Train Loss: 0.1121 | Val Loss: 0.1216 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.1%
+Epoch 85/350 | Train Loss: 0.1122 | Val Loss: 0.1204 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.1%
+Epoch 86/350 | Train Loss: 0.1121 | Val Loss: 0.1209 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.2%
+Epoch 87/350 | Train Loss: 0.1121 | Val Loss: 0.1247 | Val Bit Acc: 94.3% | Exact 20-Bit State Acc: 24.1%
+Epoch 88/350 | Train Loss: 0.1121 | Val Loss: 0.1212 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 23.9%
+Epoch 89/350 | Train Loss: 0.1121 | Val Loss: 0.1196 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.7%
+  --> Best Model Saved
+Epoch 90/350 | Train Loss: 0.1121 | Val Loss: 0.1195 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.2%
+  --> Best Model Saved
+Epoch 91/350 | Train Loss: 0.1120 | Val Loss: 0.1231 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 23.6%
+Epoch 92/350 | Train Loss: 0.1122 | Val Loss: 0.1267 | Val Bit Acc: 94.3% | Exact 20-Bit State Acc: 24.1%
+Epoch 93/350 | Train Loss: 0.1120 | Val Loss: 0.1240 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.0%
+Epoch 94/350 | Train Loss: 0.1119 | Val Loss: 0.1222 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.3%
+Epoch 95/350 | Train Loss: 0.1119 | Val Loss: 0.1197 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.1%
+Epoch 96/350 | Train Loss: 0.1119 | Val Loss: 0.1207 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 23.9%
+Epoch 97/350 | Train Loss: 0.1120 | Val Loss: 0.1215 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.4%
+Epoch 98/350 | Train Loss: 0.1119 | Val Loss: 0.1228 | Val Bit Acc: 94.3% | Exact 20-Bit State Acc: 23.7%
+Epoch 99/350 | Train Loss: 0.1119 | Val Loss: 0.1200 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.1%
+Epoch 100/350 | Train Loss: 0.1120 | Val Loss: 0.1238 | Val Bit Acc: 94.3% | Exact 20-Bit State Acc: 23.5%
+Epoch 101/350 | Train Loss: 0.1119 | Val Loss: 0.1196 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.6%
+Epoch 102/350 | Train Loss: 0.1120 | Val Loss: 0.1197 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.3%
+Epoch 103/350 | Train Loss: 0.1118 | Val Loss: 0.1202 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 23.8%
+Epoch 104/350 | Train Loss: 0.1118 | Val Loss: 0.1194 | Val Bit Acc: 94.5% | Exact 20-Bit State Acc: 24.4%
+  --> Best Model Saved
+Epoch 105/350 | Train Loss: 0.1118 | Val Loss: 0.1205 | Val Bit Acc: 94.4% | Exact 20-Bit State Acc: 24.1%
+Epoch 106/350 | Train Loss: 0.1082 | Val Loss: 0.1115 | Val Bit Acc: 95.3% | Exact 20-Bit State Acc: 34.0%
+  --> Best Model Saved
+Epoch 107/350 | Train Loss: 0.0697 | Val Loss: 0.0725 | Val Bit Acc: 96.9% | Exact 20-Bit State Acc: 49.2%
+  --> Best Model Saved
+Epoch 108/350 | Train Loss: 0.0626 | Val Loss: 0.0715 | Val Bit Acc: 96.9% | Exact 20-Bit State Acc: 48.9%
+  --> Best Model Saved
+Epoch 109/350 | Train Loss: 0.0626 | Val Loss: 0.0752 | Val Bit Acc: 96.8% | Exact 20-Bit State Acc: 48.5%
+Epoch 110/350 | Train Loss: 0.0625 | Val Loss: 0.0708 | Val Bit Acc: 96.9% | Exact 20-Bit State Acc: 48.8%
+  --> Best Model Saved
+Epoch 111/350 | Train Loss: 0.0625 | Val Loss: 0.0708 | Val Bit Acc: 97.0% | Exact 20-Bit State Acc: 49.3%
+  --> Best Model Saved
+Epoch 112/350 | Train Loss: 0.0625 | Val Loss: 0.0713 | Val Bit Acc: 96.9% | Exact 20-Bit State Acc: 49.0%
+Epoch 113/350 | Train Loss: 0.0624 | Val Loss: 0.0727 | Val Bit Acc: 96.9% | Exact 20-Bit State Acc: 49.2%
+Epoch 114/350 | Train Loss: 0.0624 | Val Loss: 0.0712 | Val Bit Acc: 97.0% | Exact 20-Bit State Acc: 49.7%
+Epoch 115/350 | Train Loss: 0.0355 | Val Loss: 0.0219 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+  --> Best Model Saved
+Epoch 116/350 | Train Loss: 0.0133 | Val Loss: 0.0271 | Val Bit Acc: 99.3% | Exact 20-Bit State Acc: 97.6%
+Epoch 117/350 | Train Loss: 0.0132 | Val Loss: 0.0288 | Val Bit Acc: 99.3% | Exact 20-Bit State Acc: 98.2%
+Epoch 118/350 | Train Loss: 0.0130 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 119/350 | Train Loss: 0.0130 | Val Loss: 0.0257 | Val Bit Acc: 99.3% | Exact 20-Bit State Acc: 98.6%
+Epoch 120/350 | Train Loss: 0.0128 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 121/350 | Train Loss: 0.0128 | Val Loss: 0.0217 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 122/350 | Train Loss: 0.0127 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.9%
+Epoch 123/350 | Train Loss: 0.0129 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 124/350 | Train Loss: 0.0126 | Val Loss: 0.0227 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 125/350 | Train Loss: 0.0127 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.9%
+Epoch 126/350 | Train Loss: 0.0125 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 127/350 | Train Loss: 0.0126 | Val Loss: 0.0227 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 128/350 | Train Loss: 0.0129 | Val Loss: 0.0225 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 129/350 | Train Loss: 0.0124 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 130/350 | Train Loss: 0.0126 | Val Loss: 0.0218 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 131/350 | Train Loss: 0.0126 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 132/350 | Train Loss: 0.0124 | Val Loss: 0.0231 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 133/350 | Train Loss: 0.0124 | Val Loss: 0.0239 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 134/350 | Train Loss: 0.0125 | Val Loss: 0.0240 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 135/350 | Train Loss: 0.0124 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 136/350 | Train Loss: 0.0125 | Val Loss: 0.0221 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 137/350 | Train Loss: 0.0123 | Val Loss: 0.0224 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 138/350 | Train Loss: 0.0124 | Val Loss: 0.0252 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 139/350 | Train Loss: 0.0124 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 140/350 | Train Loss: 0.0123 | Val Loss: 0.0234 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 141/350 | Train Loss: 0.0123 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 142/350 | Train Loss: 0.0124 | Val Loss: 0.0218 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 143/350 | Train Loss: 0.0122 | Val Loss: 0.0239 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.5%
+Epoch 144/350 | Train Loss: 0.0122 | Val Loss: 0.0220 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 145/350 | Train Loss: 0.0122 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 146/350 | Train Loss: 0.0123 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 147/350 | Train Loss: 0.0122 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 148/350 | Train Loss: 0.0121 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 149/350 | Train Loss: 0.0122 | Val Loss: 0.0221 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 150/350 | Train Loss: 0.0122 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 151/350 | Train Loss: 0.0121 | Val Loss: 0.0221 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 152/350 | Train Loss: 0.0121 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 153/350 | Train Loss: 0.0121 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.9%
+Epoch 154/350 | Train Loss: 0.0121 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 155/350 | Train Loss: 0.0120 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 156/350 | Train Loss: 0.0120 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 157/350 | Train Loss: 0.0120 | Val Loss: 0.0252 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 97.7%
+Epoch 158/350 | Train Loss: 0.0120 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 159/350 | Train Loss: 0.0120 | Val Loss: 0.0243 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.3%
+Epoch 160/350 | Train Loss: 0.0119 | Val Loss: 0.0227 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 161/350 | Train Loss: 0.0120 | Val Loss: 0.0221 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 162/350 | Train Loss: 0.0119 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 163/350 | Train Loss: 0.0119 | Val Loss: 0.0253 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 164/350 | Train Loss: 0.0119 | Val Loss: 0.0225 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 165/350 | Train Loss: 0.0118 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 166/350 | Train Loss: 0.0119 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 167/350 | Train Loss: 0.0119 | Val Loss: 0.0235 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 168/350 | Train Loss: 0.0118 | Val Loss: 0.0228 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 169/350 | Train Loss: 0.0118 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 170/350 | Train Loss: 0.0118 | Val Loss: 0.0224 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 171/350 | Train Loss: 0.0118 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 172/350 | Train Loss: 0.0117 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 173/350 | Train Loss: 0.0117 | Val Loss: 0.0217 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 174/350 | Train Loss: 0.0117 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 175/350 | Train Loss: 0.0117 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.9%
+Epoch 176/350 | Train Loss: 0.0116 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 177/350 | Train Loss: 0.0117 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 178/350 | Train Loss: 0.0116 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 179/350 | Train Loss: 0.0116 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 180/350 | Train Loss: 0.0116 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 181/350 | Train Loss: 0.0115 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 182/350 | Train Loss: 0.0115 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 183/350 | Train Loss: 0.0116 | Val Loss: 0.0218 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 184/350 | Train Loss: 0.0115 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 185/350 | Train Loss: 0.0115 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.6%
+Epoch 186/350 | Train Loss: 0.0115 | Val Loss: 0.0226 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 187/350 | Train Loss: 0.0115 | Val Loss: 0.0213 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 188/350 | Train Loss: 0.0114 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 189/350 | Train Loss: 0.0114 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 190/350 | Train Loss: 0.0114 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.9%
+Epoch 191/350 | Train Loss: 0.0113 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 192/350 | Train Loss: 0.0114 | Val Loss: 0.0213 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 193/350 | Train Loss: 0.0113 | Val Loss: 0.0225 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 194/350 | Train Loss: 0.0113 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 195/350 | Train Loss: 0.0113 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 196/350 | Train Loss: 0.0112 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 197/350 | Train Loss: 0.0112 | Val Loss: 0.0218 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.5%
+Epoch 198/350 | Train Loss: 0.0112 | Val Loss: 0.0213 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 199/350 | Train Loss: 0.0112 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 200/350 | Train Loss: 0.0111 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 201/350 | Train Loss: 0.0110 | Val Loss: 0.0213 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 202/350 | Train Loss: 0.0111 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 203/350 | Train Loss: 0.0110 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 204/350 | Train Loss: 0.0110 | Val Loss: 0.0223 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 205/350 | Train Loss: 0.0110 | Val Loss: 0.0231 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.7%
+Epoch 206/350 | Train Loss: 0.0110 | Val Loss: 0.0220 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.3%
+Epoch 207/350 | Train Loss: 0.0109 | Val Loss: 0.0222 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 208/350 | Train Loss: 0.0109 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 209/350 | Train Loss: 0.0109 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 210/350 | Train Loss: 0.0108 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 211/350 | Train Loss: 0.0109 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 212/350 | Train Loss: 0.0108 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 213/350 | Train Loss: 0.0108 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 214/350 | Train Loss: 0.0107 | Val Loss: 0.0210 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 215/350 | Train Loss: 0.0107 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 216/350 | Train Loss: 0.0107 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 217/350 | Train Loss: 0.0106 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 218/350 | Train Loss: 0.0106 | Val Loss: 0.0210 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 219/350 | Train Loss: 0.0106 | Val Loss: 0.0216 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 220/350 | Train Loss: 0.0106 | Val Loss: 0.0210 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 221/350 | Train Loss: 0.0105 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 222/350 | Train Loss: 0.0105 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 223/350 | Train Loss: 0.0105 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 224/350 | Train Loss: 0.0105 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 225/350 | Train Loss: 0.0104 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 226/350 | Train Loss: 0.0104 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 227/350 | Train Loss: 0.0104 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 228/350 | Train Loss: 0.0104 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 229/350 | Train Loss: 0.0103 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 230/350 | Train Loss: 0.0103 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 231/350 | Train Loss: 0.0103 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 232/350 | Train Loss: 0.0103 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 233/350 | Train Loss: 0.0102 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 234/350 | Train Loss: 0.0102 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 235/350 | Train Loss: 0.0101 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 236/350 | Train Loss: 0.0101 | Val Loss: 0.0221 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 237/350 | Train Loss: 0.0101 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 238/350 | Train Loss: 0.0101 | Val Loss: 0.0217 | Val Bit Acc: 99.4% | Exact 20-Bit State Acc: 98.8%
+Epoch 239/350 | Train Loss: 0.0100 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 240/350 | Train Loss: 0.0100 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 241/350 | Train Loss: 0.0100 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 242/350 | Train Loss: 0.0099 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 243/350 | Train Loss: 0.0099 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 244/350 | Train Loss: 0.0099 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 245/350 | Train Loss: 0.0098 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 246/350 | Train Loss: 0.0098 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 247/350 | Train Loss: 0.0098 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 248/350 | Train Loss: 0.0097 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 249/350 | Train Loss: 0.0097 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 250/350 | Train Loss: 0.0097 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 251/350 | Train Loss: 0.0096 | Val Loss: 0.0211 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 252/350 | Train Loss: 0.0096 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 253/350 | Train Loss: 0.0096 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 254/350 | Train Loss: 0.0095 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 255/350 | Train Loss: 0.0095 | Val Loss: 0.0215 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 256/350 | Train Loss: 0.0095 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 257/350 | Train Loss: 0.0095 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 258/350 | Train Loss: 0.0094 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 259/350 | Train Loss: 0.0094 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 260/350 | Train Loss: 0.0094 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 261/350 | Train Loss: 0.0093 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 262/350 | Train Loss: 0.0093 | Val Loss: 0.0210 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 263/350 | Train Loss: 0.0093 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 264/350 | Train Loss: 0.0093 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 265/350 | Train Loss: 0.0092 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 266/350 | Train Loss: 0.0092 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 267/350 | Train Loss: 0.0092 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 268/350 | Train Loss: 0.0091 | Val Loss: 0.0212 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 269/350 | Train Loss: 0.0091 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 270/350 | Train Loss: 0.0091 | Val Loss: 0.0214 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 271/350 | Train Loss: 0.0091 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 272/350 | Train Loss: 0.0090 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 273/350 | Train Loss: 0.0090 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 274/350 | Train Loss: 0.0090 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 275/350 | Train Loss: 0.0090 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 276/350 | Train Loss: 0.0089 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 277/350 | Train Loss: 0.0089 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 278/350 | Train Loss: 0.0089 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 279/350 | Train Loss: 0.0088 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 280/350 | Train Loss: 0.0088 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 281/350 | Train Loss: 0.0088 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 282/350 | Train Loss: 0.0088 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 283/350 | Train Loss: 0.0087 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 284/350 | Train Loss: 0.0087 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 285/350 | Train Loss: 0.0087 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 286/350 | Train Loss: 0.0087 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 287/350 | Train Loss: 0.0087 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 288/350 | Train Loss: 0.0086 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 289/350 | Train Loss: 0.0086 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 290/350 | Train Loss: 0.0086 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 291/350 | Train Loss: 0.0086 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 292/350 | Train Loss: 0.0085 | Val Loss: 0.0207 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 293/350 | Train Loss: 0.0085 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 294/350 | Train Loss: 0.0085 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 295/350 | Train Loss: 0.0085 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 296/350 | Train Loss: 0.0085 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 297/350 | Train Loss: 0.0084 | Val Loss: 0.0208 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 298/350 | Train Loss: 0.0084 | Val Loss: 0.0209 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 299/350 | Train Loss: 0.0084 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 300/350 | Train Loss: 0.0084 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 301/350 | Train Loss: 0.0084 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 302/350 | Train Loss: 0.0084 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 303/350 | Train Loss: 0.0083 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 304/350 | Train Loss: 0.0083 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.8%
+Epoch 305/350 | Train Loss: 0.0083 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 306/350 | Train Loss: 0.0083 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 307/350 | Train Loss: 0.0083 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 308/350 | Train Loss: 0.0083 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 309/350 | Train Loss: 0.0083 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 310/350 | Train Loss: 0.0083 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+  --> Best Model Saved
+Epoch 311/350 | Train Loss: 0.0082 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 312/350 | Train Loss: 0.0082 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 313/350 | Train Loss: 0.0082 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 314/350 | Train Loss: 0.0082 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 315/350 | Train Loss: 0.0082 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 316/350 | Train Loss: 0.0082 | Val Loss: 0.0206 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 317/350 | Train Loss: 0.0082 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 318/350 | Train Loss: 0.0082 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 319/350 | Train Loss: 0.0082 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 320/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 321/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 322/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 323/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 324/350 | Train Loss: 0.0081 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 325/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 326/350 | Train Loss: 0.0081 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 327/350 | Train Loss: 0.0081 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 328/350 | Train Loss: 0.0081 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 329/350 | Train Loss: 0.0081 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 330/350 | Train Loss: 0.0081 | Val Loss: 0.0202 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 331/350 | Train Loss: 0.0081 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 332/350 | Train Loss: 0.0081 | Val Loss: 0.0203 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 333/350 | Train Loss: 0.0081 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 334/350 | Train Loss: 0.0081 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 335/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 336/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 337/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 338/350 | Train Loss: 0.0080 | Val Loss: 0.0205 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 339/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 340/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 341/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 342/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 343/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 344/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 345/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 346/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 347/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 348/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 349/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%
+Epoch 350/350 | Train Loss: 0.0080 | Val Loss: 0.0204 | Val Bit Acc: 99.5% | Exact 20-Bit State Acc: 98.9%

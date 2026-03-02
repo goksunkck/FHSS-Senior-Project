@@ -11,7 +11,7 @@ import sys
 
 # --- Configuration ---
 BATCH_SIZE = 128
-EPOCHS = 150
+EPOCHS = 350
 LEARNING_RATE = 1e-3
 LOOKBACK_WINDOW = 12
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -260,7 +260,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False)
     
     # Set layers and heads to 1 for exact mathematical match to proofs
-    model = StateTransformer(num_classes=8, d_model=64, nhead=1, num_layers=1).to(DEVICE)
+    model = StateTransformer(num_classes=8, d_model=64, nhead=4, num_layers=2).to(DEVICE)
     
     w_path = os.path.join('models', 'cnn_weights.pth')
     if os.path.exists(w_path):
