@@ -1,4 +1,82 @@
-data/synthetic/classification_dataset_stft_awgn.mat
-data
-results
-resources
+# Python caches and environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Generated binary/project files
+*.asv
+*.m~
+*.slxc
+*.mex*
+*.mat
+resources/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+*.nav
+*.snm
+
+# Generated report/check PDFs
+*.pdf
+*.tex
+*.synctex.gz
+
+# Generated datasets
+data/**
+!data/
+!data/**/
+!data/**/.gitkeep
+
+# Model checkpoints and trained weights
+models/**
+!models/
+!models/.gitkeep
+
+# Generated plots and diagnostics
+results/**
+!results/
+!results/.gitkeep
+
+# Local paper copies and extracted text
+Papers/
+arxiv_paper.html
+results/*_text.txt
+
+# Runtime logs and local experiment notes
+accuracy_report.txt
+output.txt
+output_full_search.txt
+training_log.txt
+train_process_complete.txt
+matches.json
+max_min.txt
+
+# Personal/reference report drafts
+EE491_492_Final_Report_GoksunGuneyKucuk.tex
+project_abstract.tex
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

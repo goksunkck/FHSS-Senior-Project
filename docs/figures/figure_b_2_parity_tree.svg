@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="520" viewBox="0 0 1050 520" role="img" aria-labelledby="title desc">
+  <title id="title">Hierarchical parity tree</title>
+  <desc id="desc">Balanced chain-of-thought decomposition of a 20-bit Gold-code parity into local two-input products with dummy leaves.</desc>
+  <defs>
+    <style>
+      .node { fill: #1f2937; stroke: #94a3b8; stroke-width: 1.8; }
+      .leaf { fill: #12395a; stroke: #60a5fa; stroke-width: 1.8; }
+      .dummy { fill: #111827; stroke: #9ca3af; stroke-width: 1.4; stroke-dasharray: 5 4; }
+      .root { fill: #4a2e0d; stroke: #f59e0b; stroke-width: 2; }
+      .text { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #ffffff; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 13px; fill: #d1d5db; }
+      .edge { stroke: #e5e7eb; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1050" height="520" fill="#0b1120"/>
+
+  <text x="525" y="36" text-anchor="middle" class="text" font-weight="700">Figure B.2: Hierarchical parity tree for a 20-bit Gold-code state</text>
+  <text x="525" y="60" text-anchor="middle" class="small">20 real state leaves are embedded into a 32-leaf balanced tree with 12 dummy +1 leaves.</text>
+
+  <circle cx="525" cy="105" r="28" class="root"/>
+  <text x="525" y="111" text-anchor="middle" class="text">g</text>
+
+  <circle cx="315" cy="190" r="25" class="node"/>
+  <circle cx="735" cy="190" r="25" class="node"/>
+  <text x="315" y="196" text-anchor="middle" class="text">p1</text>
+  <text x="735" y="196" text-anchor="middle" class="text">p2</text>
+
+  <circle cx="205" cy="285" r="23" class="node"/>
+  <circle cx="425" cy="285" r="23" class="node"/>
+  <circle cx="625" cy="285" r="23" class="node"/>
+  <circle cx="845" cy="285" r="23" class="node"/>
+  <text x="205" y="291" text-anchor="middle" class="text">q1</text>
+  <text x="425" y="291" text-anchor="middle" class="text">q2</text>
+  <text x="625" y="291" text-anchor="middle" class="text">q3</text>
+  <text x="845" y="291" text-anchor="middle" class="text">q4</text>
+
+  <path d="M 505 119 L 336 180" class="edge"/>
+  <path d="M 545 119 L 714 180" class="edge"/>
+  <path d="M 296 205 L 224 271" class="edge"/>
+  <path d="M 334 205 L 407 271" class="edge"/>
+  <path d="M 716 205 L 643 271" class="edge"/>
+  <path d="M 754 205 L 826 271" class="edge"/>
+
+  <rect x="65" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="165" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="265" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="365" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="465" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="565" y="382" width="85" height="46" rx="7" class="leaf"/>
+  <rect x="665" y="382" width="85" height="46" rx="7" class="dummy"/>
+  <rect x="765" y="382" width="85" height="46" rx="7" class="dummy"/>
+  <rect x="865" y="382" width="85" height="46" rx="7" class="dummy"/>
+
+  <text x="107" y="410" text-anchor="middle" class="text">u1..u5</text>
+  <text x="207" y="410" text-anchor="middle" class="text">u6..u10</text>
+  <text x="307" y="410" text-anchor="middle" class="text">v1..v5</text>
+  <text x="407" y="410" text-anchor="middle" class="text">v6..v10</text>
+  <text x="507" y="410" text-anchor="middle" class="text">chips</text>
+  <text x="607" y="410" text-anchor="middle" class="text">pairs</text>
+  <text x="707" y="410" text-anchor="middle" class="text">+1</text>
+  <text x="807" y="410" text-anchor="middle" class="text">+1</text>
+  <text x="907" y="410" text-anchor="middle" class="text">+1</text>
+
+  <text x="525" y="478" text-anchor="middle" class="small">Each internal node is a local two-input product in bipolar form, replacing one hard high-order XOR with supervised smaller steps.</text>
+</svg>

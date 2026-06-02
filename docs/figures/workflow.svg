@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="360" viewBox="0 0 1180 360" role="img" aria-labelledby="title desc">
+  <title id="title">FHSS state-recovery workflow</title>
+  <desc id="desc">Pipeline from LFSR sequence generation through waveform simulation, STFT, CNN hop classification, state transformer recovery, and deterministic next-hop prediction.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#e5e7eb"/>
+    </marker>
+    <style>
+      .box { fill: #1f2937; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .accent { fill: #12395a; stroke: #60a5fa; stroke-width: 2; rx: 8; }
+      .state { fill: #123f2a; stroke: #4ade80; stroke-width: 2; rx: 8; }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #d1d5db; }
+      .arrow { stroke: #e5e7eb; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1180" height="360" fill="#0b1120"/>
+
+  <rect x="20" y="88" width="150" height="105" class="box"/>
+  <text x="95" y="126" text-anchor="middle" class="label">LFSRs</text>
+  <text x="95" y="153" text-anchor="middle" class="small">m-sequence or</text>
+  <text x="95" y="174" text-anchor="middle" class="small">Gold-code chips</text>
+
+  <rect x="220" y="88" width="160" height="105" class="box"/>
+  <text x="300" y="121" text-anchor="middle" class="label">Hop Mapper</text>
+  <text x="300" y="150" text-anchor="middle" class="small">3 chips per hop</text>
+  <text x="300" y="171" text-anchor="middle" class="small">8 channels</text>
+
+  <rect x="430" y="88" width="155" height="105" class="box"/>
+  <text x="507" y="121" text-anchor="middle" class="label">FHSS Signal</text>
+  <text x="507" y="150" text-anchor="middle" class="small">FSK waveform</text>
+  <text x="507" y="171" text-anchor="middle" class="small">with AWGN</text>
+
+  <rect x="635" y="88" width="145" height="105" class="accent"/>
+  <text x="707" y="121" text-anchor="middle" class="label">STFT</text>
+  <text x="707" y="150" text-anchor="middle" class="small">1024 x 3</text>
+  <text x="707" y="171" text-anchor="middle" class="small">hop slices</text>
+
+  <rect x="830" y="88" width="145" height="105" class="accent"/>
+  <text x="902" y="121" text-anchor="middle" class="label">CNN</text>
+  <text x="902" y="150" text-anchor="middle" class="small">hop-channel</text>
+  <text x="902" y="171" text-anchor="middle" class="small">evidence</text>
+
+  <rect x="1025" y="88" width="145" height="105" class="state"/>
+  <text x="1097" y="121" text-anchor="middle" class="label">Transformer</text>
+  <text x="1097" y="150" text-anchor="middle" class="small">hidden state</text>
+  <text x="1097" y="171" text-anchor="middle" class="small">recovery</text>
+
+  <rect x="430" y="255" width="370" height="70" class="state"/>
+  <text x="615" y="283" text-anchor="middle" class="label">Deterministic LFSR Stepping</text>
+  <text x="615" y="307" text-anchor="middle" class="small">predicted state bits are converted into future chips and next-hop labels</text>
+
+  <path d="M 170 140 L 220 140" class="arrow"/>
+  <path d="M 380 140 L 430 140" class="arrow"/>
+  <path d="M 585 140 L 635 140" class="arrow"/>
+  <path d="M 780 140 L 830 140" class="arrow"/>
+  <path d="M 975 140 L 1025 140" class="arrow"/>
+  <path d="M 1097 193 C 1097 255 830 290 800 290" class="arrow"/>
+  <path d="M 430 290 C 260 290 95 235 95 193" class="arrow"/>
+  <text x="214" y="284" class="small">future-hop prediction loop</text>
+</svg>

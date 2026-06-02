@@ -133,7 +133,7 @@ class CosineActivation(nn.Module):
     def forward(self, x):
         return torch.cos(math.pi * x)
 
-class PeriodicTransformerEncoderLayer(nn.TransformerEncoderLayer):
+class StateTransformerEncoderLayer(nn.TransformerEncoderLayer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.activation = CosineActivation()
@@ -168,8 +168,8 @@ class StateTransformer(nn.Module):
         
         self.pos_encoder = PositionalEncoding(d_model)
         
-        # Periodic Transformer
-        encoder_layers = PeriodicTransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
+        # State transformer encoder with the cosine activation used in the parity experiments.
+        encoder_layers = StateTransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=128, dropout=0.0)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         
         # Step-by-step logic predicts 1 bit at a time
@@ -238,7 +238,7 @@ class StateTransformer(nn.Module):
             return torch.cat(generated_bits, dim=-1)
 
 def main():
-    print("--- Training State-Tracking Periodic Transformer ---")
+    print("--- Training State-Tracking Transformer ---")
     
     raw_h5 = os.path.join('data', 'synthetic', 'classification_dataset_stft_random_deg10_python.h5')
     prep_h5 = os.path.join('data', 'synthetic', 'prepared_prediction_sequences_python.h5')
@@ -365,7 +365,15 @@ def main():
             best_val_loss = avg_val_loss
             output_model = os.path.join('models', 'state_tracking_transformer_best.pth')
             os.makedirs(os.path.dirname(output_model), exist_ok=True)
-            torch.save(model.state_dict(), output_model)
+            torch.save(
+                {
+                    'model_state_dict': model.state_dict(),
+                    'history': history,
+                    'lookback': LOOKBACK_WINDOW,
+                    'state_dim': 20,
+                },
+                output_model,
+            )
             if epoch > 0: print("  --> Best Model Saved")
 
 if __name__ == "__main__":

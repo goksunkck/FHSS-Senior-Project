@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="390" viewBox="0 0 1100 390" role="img" aria-labelledby="title desc">
+  <title id="title">Intermediate supervision</title>
+  <desc id="desc">Comparison between direct next-hop supervision and intermediate state supervision for Gold-code prediction.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#e5e7eb"/>
+    </marker>
+    <style>
+      .box { fill: #1f2937; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .weak { fill: #4c1d1d; stroke: #f87171; stroke-width: 2; rx: 8; }
+      .strong { fill: #123f2a; stroke: #4ade80; stroke-width: 2; rx: 8; }
+      .text { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: 700; fill: #ffffff; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 14px; fill: #d1d5db; }
+      .arrow { stroke: #e5e7eb; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1100" height="390" fill="#0b1120"/>
+
+  <text x="550" y="34" text-anchor="middle" class="text">Figure B.3: Intermediate supervision for state recovery</text>
+
+  <rect x="50" y="90" width="175" height="78" class="box"/>
+  <text x="137" y="123" text-anchor="middle" class="text">Hop History</text>
+  <text x="137" y="148" text-anchor="middle" class="small">noisy STFT evidence</text>
+
+  <rect x="320" y="80" width="230" height="98" class="weak"/>
+  <text x="435" y="118" text-anchor="middle" class="text">Direct Supervision</text>
+  <text x="435" y="143" text-anchor="middle" class="small">only final next-hop loss</text>
+  <text x="435" y="162" text-anchor="middle" class="small">weak parity signal</text>
+
+  <rect x="705" y="80" width="230" height="98" class="weak"/>
+  <text x="820" y="118" text-anchor="middle" class="text">Next Hop</text>
+  <text x="820" y="143" text-anchor="middle" class="small">hard high-order target</text>
+
+  <path d="M 225 129 L 320 129" class="arrow"/>
+  <path d="M 550 129 L 705 129" class="arrow"/>
+
+  <rect x="320" y="245" width="230" height="98" class="strong"/>
+  <text x="435" y="282" text-anchor="middle" class="text">State Supervision</text>
+  <text x="435" y="307" text-anchor="middle" class="small">20 Gold-code state bits</text>
+  <text x="435" y="326" text-anchor="middle" class="small">process-level targets</text>
+
+  <rect x="705" y="245" width="230" height="98" class="strong"/>
+  <text x="820" y="282" text-anchor="middle" class="text">LFSR Stepping</text>
+  <text x="820" y="307" text-anchor="middle" class="small">deterministic next-hop</text>
+
+  <path d="M 137 168 C 180 270 240 294 320 294" class="arrow"/>
+  <path d="M 550 294 L 705 294" class="arrow"/>
+
+  <text x="578" y="217" text-anchor="middle" class="small">The project model trains on the lower path.</text>
+</svg>

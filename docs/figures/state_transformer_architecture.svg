@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="470" viewBox="0 0 1180 470" role="img" aria-labelledby="title desc">
+  <title id="title">State transformer architecture</title>
+  <desc id="desc">Architecture of the project model with CNN visual tokens, positional encoding, teacher-forced state-bit tokens, causal transformer encoder layers, and autoregressive state-bit output.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#e5e7eb"/>
+    </marker>
+    <style>
+      .box { fill: #1f2937; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .cnn { fill: #12395a; stroke: #60a5fa; stroke-width: 2; rx: 8; }
+      .tf { fill: #123f2a; stroke: #4ade80; stroke-width: 2; rx: 8; }
+      .out { fill: #4a2e0d; stroke: #f59e0b; stroke-width: 2; rx: 8; }
+      .label { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 15px; fill: #d1d5db; }
+      .arrow { stroke: #e5e7eb; stroke-width: 2.3; fill: none; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 7 6; }
+    </style>
+  </defs>
+
+  <rect width="1180" height="470" fill="#0b1120"/>
+
+  <rect x="35" y="58" width="170" height="96" class="box"/>
+  <text x="120" y="95" text-anchor="middle" class="label">12-Hop Window</text>
+  <text x="120" y="124" text-anchor="middle" class="small">STFT slices</text>
+
+  <rect x="265" y="48" width="170" height="116" class="cnn"/>
+  <text x="350" y="87" text-anchor="middle" class="label">CNN Front End</text>
+  <text x="350" y="116" text-anchor="middle" class="small">conv + pooling</text>
+  <text x="350" y="138" text-anchor="middle" class="small">8-channel logits</text>
+
+  <rect x="495" y="58" width="175" height="96" class="box"/>
+  <text x="582" y="95" text-anchor="middle" class="label">Visual Tokens</text>
+  <text x="582" y="124" text-anchor="middle" class="small">one-hot hop evidence</text>
+
+  <rect x="735" y="58" width="170" height="96" class="box"/>
+  <text x="820" y="95" text-anchor="middle" class="label">Positional</text>
+  <text x="820" y="124" text-anchor="middle" class="small">encoding</text>
+
+  <rect x="735" y="235" width="170" height="96" class="tf"/>
+  <text x="820" y="272" text-anchor="middle" class="label">Teacher Bits</text>
+  <text x="820" y="301" text-anchor="middle" class="small">state bits 1..19</text>
+
+  <rect x="970" y="126" width="175" height="160" class="tf"/>
+  <text x="1058" y="164" text-anchor="middle" class="label">Causal</text>
+  <text x="1058" y="189" text-anchor="middle" class="label">Transformer</text>
+  <text x="1058" y="220" text-anchor="middle" class="small">self-attention</text>
+  <text x="1058" y="242" text-anchor="middle" class="small">cosine activation</text>
+  <text x="1058" y="264" text-anchor="middle" class="small">state-bit decoding</text>
+
+  <rect x="460" y="365" width="230" height="76" class="out"/>
+  <text x="575" y="395" text-anchor="middle" class="label">20-Bit State</text>
+  <text x="575" y="420" text-anchor="middle" class="small">Gold-code joint LFSR state</text>
+
+  <rect x="760" y="365" width="210" height="76" class="out"/>
+  <text x="865" y="395" text-anchor="middle" class="label">Next Hop</text>
+  <text x="865" y="420" text-anchor="middle" class="small">via LFSR stepping</text>
+
+  <path d="M 205 106 L 265 106" class="arrow"/>
+  <path d="M 435 106 L 495 106" class="arrow"/>
+  <path d="M 670 106 L 735 106" class="arrow"/>
+  <path d="M 905 106 C 940 110 953 138 970 164" class="arrow"/>
+  <path d="M 905 283 C 942 281 954 258 970 238" class="arrow dashed"/>
+  <path d="M 1058 286 C 1045 350 760 403 690 403" class="arrow"/>
+  <path d="M 690 403 L 760 403" class="arrow"/>
+
+  <text x="918" y="326" class="small">teacher forcing during training</text>
+  <text x="690" y="348" class="small">autoregressive state generation at inference</text>
+</svg>

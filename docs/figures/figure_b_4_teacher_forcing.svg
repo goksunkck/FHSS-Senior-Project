@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="410" viewBox="0 0 1100 410" role="img" aria-labelledby="title desc">
+  <title id="title">Teacher forcing and autoregressive inference</title>
+  <desc id="desc">Training uses teacher-forced previous state bits; inference feeds back predicted state bits autoregressively.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#e5e7eb"/>
+    </marker>
+    <style>
+      .box { fill: #1f2937; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .train { fill: #12395a; stroke: #60a5fa; stroke-width: 2; rx: 8; }
+      .infer { fill: #4a2e0d; stroke: #f59e0b; stroke-width: 2; rx: 8; }
+      .text { font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: 700; fill: #ffffff; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 14px; fill: #d1d5db; }
+      .arrow { stroke: #e5e7eb; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="410" fill="#0b1120"/>
+
+  <text x="550" y="34" text-anchor="middle" class="text">Figure B.4: Teacher forcing during training and autoregressive inference</text>
+
+  <text x="70" y="88" class="text">Training</text>
+  <rect x="70" y="112" width="180" height="72" class="box"/>
+  <text x="160" y="142" text-anchor="middle" class="text">Hop Tokens</text>
+  <text x="160" y="164" text-anchor="middle" class="small">from CNN</text>
+
+  <rect x="325" y="112" width="210" height="72" class="train"/>
+  <text x="430" y="142" text-anchor="middle" class="text">Ground-Truth Bits</text>
+  <text x="430" y="164" text-anchor="middle" class="small">s1, ..., s19</text>
+
+  <rect x="610" y="112" width="210" height="72" class="train"/>
+  <text x="715" y="142" text-anchor="middle" class="text">Predict Next Bit</text>
+  <text x="715" y="164" text-anchor="middle" class="small">loss on all state bits</text>
+
+  <path d="M 250 148 L 325 148" class="arrow"/>
+  <path d="M 535 148 L 610 148" class="arrow"/>
+
+  <text x="70" y="250" class="text">Inference</text>
+  <rect x="70" y="274" width="180" height="72" class="box"/>
+  <text x="160" y="304" text-anchor="middle" class="text">Hop Tokens</text>
+  <text x="160" y="326" text-anchor="middle" class="small">from CNN</text>
+
+  <rect x="325" y="274" width="210" height="72" class="infer"/>
+  <text x="430" y="304" text-anchor="middle" class="text">Predicted Bits</text>
+  <text x="430" y="326" text-anchor="middle" class="small">feed back into model</text>
+
+  <rect x="610" y="274" width="210" height="72" class="infer"/>
+  <text x="715" y="304" text-anchor="middle" class="text">20-Bit State</text>
+  <text x="715" y="326" text-anchor="middle" class="small">autoregressive output</text>
+
+  <rect x="885" y="274" width="160" height="72" class="infer"/>
+  <text x="965" y="304" text-anchor="middle" class="text">Next Hop</text>
+  <text x="965" y="326" text-anchor="middle" class="small">LFSR stepping</text>
+
+  <path d="M 250 310 L 325 310" class="arrow"/>
+  <path d="M 535 310 L 610 310" class="arrow"/>
+  <path d="M 820 310 L 885 310" class="arrow"/>
+  <path d="M 430 274 C 430 238 690 238 690 274" class="arrow dash"/>
+  <text x="565" y="233" text-anchor="middle" class="small">previous prediction becomes next input</text>
+</svg>
